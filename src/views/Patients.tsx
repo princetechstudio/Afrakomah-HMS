@@ -441,7 +441,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
                   )}
                   <StatusPill s={l.status} />
                   {(l.status === "results" || l.status === "verified") && (
-                    <Btn variant="outline" size="xs" onClick={() => setLabReport(l)}><IEye size={12} /> View results</Btn>
+                    <Btn variant="outline" size="xs" onClick={() => setLabReport(l)}><IEye size={12} /> View results ({l.results?.length ?? 0})</Btn>
                   )}
                 </div>
               </div>

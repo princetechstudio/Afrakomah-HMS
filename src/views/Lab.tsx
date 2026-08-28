@@ -14,6 +14,7 @@ export default function LabView() {
   const [enterFor, setEnterFor] = useState<LabOrder | null>(null);
   const [reportFor, setReportFor] = useState<LabOrder | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [expandedResults, setExpandedResults] = useState<string | null>(null);
 
   const canWork = user?.role === "lab";
 
@@ -96,6 +97,7 @@ export default function LabView() {
               const p = db.patients.find((x) => x.mrn === o.patientMrn);
               const doc = db.staff.find((s) => s.id === o.doctorId);
               return (
+                <>
                 <tr key={o.id} className="border-b border-line-soft/70 transition-colors last:border-0 hover:bg-med-50/40">
                   <td className="py-2.5 pr-3 font-mono font-bold text-med-700">{o.id}</td>
                   <td className="py-2.5 pr-3">
@@ -115,10 +117,32 @@ export default function LabView() {
                       {canWork && o.status === "collected" && <Btn variant="soft" size="xs" onClick={() => advance(o, "processing")}><IFlask size={12} /> Process</Btn>}
                       {canWork && o.status === "processing" && <Btn size="xs" onClick={() => setEnterFor(o)}>Enter results</Btn>}
                       {canWork && o.status === "results" && <Btn size="xs" onClick={() => verify(o)}><ICheck size={12} /> Verify</Btn>}
-                      {(o.status === "results" || o.status === "verified") && <Btn variant="outline" size="xs" onClick={() => setReportFor(o)}><IEye size={12} /> {o.status === "results" ? "Review results" : "Report"}</Btn>}
+                      {(o.status === "results" || o.status === "verified") && <Btn variant={expandedResults === o.id ? "soft" : "outline"} size="xs" onClick={() => setExpandedResults((current) => current === o.id ? null : o.id)}><IEye size={12} /> {expandedResults === o.id ? "Hide results" : "View results"}</Btn>}
                     </div>
                   </td>
                 </tr>
+                {expandedResults === o.id && (o.results?.length ?? 0) > 0 && (
+                  <tr className="border-b border-line-soft/70 bg-med-50/30">
+                    <td colSpan={8} className="px-3 py-3">
+                      <div className="rounded-lg border border-med-200 bg-white p-3">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-[11px] font-bold text-ink">Result values for doctor review</p>
+                          <Btn variant="ghost" size="xs" onClick={() => setReportFor(o)}><IEye size={12} /> Open printable report</Btn>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {o.results!.map((result) => (
+                            <div key={result.marker} className="rounded-md bg-paper/70 px-2.5 py-2">
+                              <p className="text-[10px] font-semibold text-ink-faint">{result.marker}</p>
+                              <p className={`font-mono text-sm font-bold ${result.flag === "H" || result.flag === "P" ? "text-alert" : result.flag === "L" ? "text-info" : "text-ink"}`}>{result.value} <span className="text-[10px] font-normal text-ink-faint">{result.unit}</span></p>
+                              <p className="font-mono text-[9px] text-ink-faint">Reference: {result.ref}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </>
               );
             })}
           </tbody>
