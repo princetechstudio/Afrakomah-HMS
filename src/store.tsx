@@ -100,6 +100,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dbRef = useRef(db);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const userRef = useRef(user);
   userRef.current = user;
 
@@ -144,7 +145,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     dbRef.current = next;
     setDb(next);
-    void saveRemote(next).catch((error: Error) => toast(`Could not save to Supabase: ${error.message}`, "danger"));
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveRemote(next));
+    void saveQueueRef.current.catch((error: Error) => toast(`Could not save to Supabase: ${error.message}`, "danger"));
   }, []);
 
   /* ---------- staff-ID sign-in with server-side password verification ---------- */
