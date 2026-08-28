@@ -151,17 +151,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     (name: string, role: Role, password: string, existingId?: string) => {
       void (async () => {
-        const staffId = (existingId ?? name).trim();
-        const { data, error } = await import("./supabase").then(({ supabase }) => supabase.rpc("verify_staff_login", { p_staff_id: staffId, p_password: password }));
-        if (error) { toast(`Sign-in failed: ${error.message}`, "danger"); return; }
-        const row = Array.isArray(data) ? data[0] : data;
-        if (!row || row.role !== role) { toast("Invalid staff ID, role, or password", "danger"); return; }
-        const staff: Staff = { id: row.staff_id, name: row.full_name, role: row.role, dept: row.department, title: row.job_title, phone: row.phone, status: "on-duty", active: row.active, schedule: ["Mon", "Tue", "Wed", "Thu", "Fri"] };
-        mutate((d) => { const current = d.staff.find((s) => s.id === staff.id); if (current) Object.assign(current, staff); else d.staff.push(staff); }, { audit: `${staff.name} signed in to the ${ROLE_META[role].label} workspace` });
-        setUser(staff);
-        localStorage.setItem(USER_KEY, staff.id);
-        setNav({ view: HOME[role] });
-        toast(`Welcome, ${staff.name} — ${ROLE_META[role].label} workspace`, "ok");
+        try {
+          const staffId = (existingId ?? name).trim().toUpperCase();
+          const { data, error } = await supabase.rpc("verify_staff_login", { p_staff_id: staffId, p_password: password });
+          if (error) { toast(`Sign-in failed: ${error.message}`, "danger"); return; }
+          const row = Array.isArray(data) ? data[0] : data;
+          if (!row || row.role !== role) { toast("Invalid staff ID, role, or password", "danger"); return; }
+          const staff: Staff = { id: row.staff_id, name: row.full_name, role: row.role, dept: row.department, title: row.job_title, phone: row.phone, status: "on-duty", active: row.active, schedule: ["Mon", "Tue", "Wed", "Thu", "Fri"] };
+          mutate((d) => { const current = d.staff.find((s) => s.id === staff.id); if (current) Object.assign(current, staff); else d.staff.push(staff); }, { audit: `${staff.name} signed in to the ${ROLE_META[role].label} workspace` });
+          setUser(staff);
+          localStorage.setItem(USER_KEY, staff.id);
+          setNav({ view: HOME[role] });
+          toast(`Welcome, ${staff.name} — ${ROLE_META[role].label} workspace`, "ok");
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          toast(`Sign-in failed: ${message}`, "danger");
+        }
       })();
     },
     [mutate, toast]

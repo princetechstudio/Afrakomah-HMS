@@ -1,4 +1,4 @@
-const CACHE_NAME = "afrakomah-hms-v1";
+const CACHE_NAME = "afrakomah-hms-v2";
 const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.svg", "/icon-512.svg"];
 
 self.addEventListener("install", (event) => {
@@ -21,11 +21,11 @@ self.addEventListener("fetch", (event) => {
     }).catch(() => caches.match("/index.html")));
     return;
   }
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
+  event.respondWith(fetch(event.request).then((response) => {
     if (new URL(event.request.url).origin === self.location.origin) {
       const copy = response.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
     }
     return response;
-  })));
+  }).catch(() => caches.match(event.request)));
 });
