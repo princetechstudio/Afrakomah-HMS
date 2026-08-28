@@ -52,11 +52,11 @@
           var fb = document.getElementById("boot-fallback");
           var detail = document.getElementById("boot-detail");
           var msg = window.__bootError ||
-            "The interface bundle did not mount within 8 seconds. This is usually a stale cached build — force a reload, or re-run the preview build.";
+            "The interface bundle did not mount. Reload the page to try again.";
           detail.textContent = msg;
           fb.style.display = "block";
         }
-      }, 8000);
+      }, 30000);
     </script>
   </head>
   <body>

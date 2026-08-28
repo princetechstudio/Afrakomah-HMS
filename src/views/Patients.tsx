@@ -4,11 +4,12 @@ import {
   todayISO, nowISO, fmtDate, fmtTime, timeAgo, ghs, ageFrom,
   LAB_CATALOG, LAB_GROUPS, COMMON_DIAGNOSES, SYMPTOMS, FREQS,
 } from "../data";
-import type { Patient, Vitals } from "../data";
+import type { LabOrder, Patient, Vitals } from "../data";
+import { ReportModal } from "./Lab";
 import { Badge, Btn, Card, Field, Input, Modal, SearchBox, Select, StatusPill, Tabs, Textarea, Avatar, SectionHead, Empty } from "../ui";
 import {
   IPlus, IChevR, IChevL, IUser, IStetho, IFlask, IPill, IReceipt, IBed, ICalendar,
-  IAlert, IPhone, IDrop, IHeart, IFile, ICheck, IX, IActivity, ICard, IClipboard,
+  IAlert, IPhone, IDrop, IHeart, IFile, ICheck, IX, IActivity, ICard, IClipboard, IEye,
 } from "../icons";
 
 export default function Patients() {
@@ -231,6 +232,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
   const [doctorOrder, setDoctorOrder] = useState<"lab" | "rx" | null>(null);
   const [showVitals, setShowVitals] = useState(false);
   const [showBill, setShowBill] = useState(false);
+  const [labReport, setLabReport] = useState<LabOrder | null>(null);
 
   if (!p) {
     return (
@@ -438,6 +440,9 @@ function PatientDetail({ mrn }: { mrn: string }) {
                     </span>
                   )}
                   <StatusPill s={l.status} />
+                  {(l.status === "results" || l.status === "verified") && (
+                    <Btn variant="outline" size="xs" onClick={() => setLabReport(l)}><IEye size={12} /> View results</Btn>
+                  )}
                 </div>
               </div>
             ))}
@@ -537,6 +542,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
       {doctorOrder && <ConsultModal patient={p} ordersOnly orderType={doctorOrder} onClose={() => setDoctorOrder(null)} />}
       {showVitals && <VitalsModal patient={p} onClose={() => setShowVitals(false)} />}
       {showBill && <ChargeModal patient={p} onClose={() => setShowBill(false)} />}
+      {labReport && <ReportModal order={labReport} onClose={() => setLabReport(null)} />}
     </div>
   );
 }

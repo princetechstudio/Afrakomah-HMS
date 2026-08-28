@@ -191,7 +191,16 @@ function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void
 
 export function ReportModal({ order, onClose }: { order: LabOrder; onClose: () => void }) {
   const { db } = useStore();
-  const cat = LAB_CATALOG[order.test];
+  const cat = LAB_CATALOG[order.test] ?? {
+    name: order.test,
+    markers: (order.results ?? []).map((result) => ({
+      marker: result.marker,
+      unit: result.unit,
+      ref: result.ref,
+      min: 0,
+      max: 0,
+    })),
+  };
   const p = db.patients.find((x) => x.mrn === order.patientMrn);
   const doc = db.staff.find((s) => s.id === order.doctorId);
 
