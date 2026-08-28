@@ -96,6 +96,7 @@ export default function LabView() {
             {filtered.map((o) => {
               const p = db.patients.find((x) => x.mrn === o.patientMrn);
               const doc = db.staff.find((s) => s.id === o.doctorId);
+              const hasResults = (o.results?.length ?? 0) > 0;
               return (
                 <>
                 <tr key={o.id} className="border-b border-line-soft/70 transition-colors last:border-0 hover:bg-med-50/40">
@@ -117,11 +118,11 @@ export default function LabView() {
                       {canWork && o.status === "collected" && <Btn variant="soft" size="xs" onClick={() => advance(o, "processing")}><IFlask size={12} /> Process</Btn>}
                       {canWork && o.status === "processing" && <Btn size="xs" onClick={() => setEnterFor(o)}>Enter results</Btn>}
                       {canWork && o.status === "results" && <Btn size="xs" onClick={() => verify(o)}><ICheck size={12} /> Verify</Btn>}
-                      {(o.status === "results" || o.status === "verified") && <Btn variant={expandedResults === o.id ? "soft" : "outline"} size="xs" onClick={() => setExpandedResults((current) => current === o.id ? null : o.id)}><IEye size={12} /> {expandedResults === o.id ? "Hide results" : "View results"}</Btn>}
+                      {hasResults && <Btn variant={expandedResults === o.id ? "soft" : "outline"} size="xs" onClick={() => setExpandedResults((current) => current === o.id ? null : o.id)}><IEye size={12} /> {expandedResults === o.id ? "Hide results" : "View results"}</Btn>}
                     </div>
                   </td>
                 </tr>
-                {expandedResults === o.id && (o.results?.length ?? 0) > 0 && (
+                {expandedResults === o.id && hasResults && (
                   <tr className="border-b border-line-soft/70 bg-med-50/30">
                     <td colSpan={8} className="px-3 py-3">
                       <div className="rounded-lg border border-med-200 bg-white p-3">
@@ -161,7 +162,18 @@ export default function LabView() {
 
 function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void }) {
   const { db, mutate, toast } = useStore();
-  const cat = LAB_CATALOG[order.test];
+  const cat = LAB_CATALOG[order.test] ?? {
+    name: order.test,
+    price: order.price,
+    markers: (order.results ?? []).map((result) => ({
+      marker: result.marker,
+      unit: result.unit,
+      ref: result.ref,
+      min: 0,
+      max: 0,
+      qual: true,
+    })),
+  };
   const p = db.patients.find((x) => x.mrn === order.patientMrn);
   const [vals, setVals] = useState<Record<string, string>>({});
 
