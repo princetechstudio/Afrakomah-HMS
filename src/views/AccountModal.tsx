@@ -30,7 +30,7 @@ export default function ProvisionAccountModal({ onClose }: { onClose: () => void
         <Field label="Phone"><Input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="024 …" /></Field>
       </div>
       {err && <p className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold leading-snug text-red-800"><IAlert size={14} className="mt-0.5 shrink-0" /> {err}</p>}
-      <p className="mt-3 rounded-lg bg-paper/70 px-3 py-2 text-[10.5px] leading-relaxed text-ink-faint"><IList size={12} className="mr-1 inline" /> The worker will sign in using their staff ID and password. Hospital Administrator accounts receive read-only operational oversight and AI analytics.</p>
+      <p className="mt-3 rounded-lg bg-paper/70 px-3 py-2 text-[10.5px] leading-relaxed text-ink-faint"><IList size={12} className="mr-1 inline" /> The worker will sign in using their staff ID and password. Administrators provision staff accounts here, while administrator workspaces provide read-only operational oversight and AI insights.</p>
     </Modal>
   );
 }

@@ -183,11 +183,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [mutate]);
 
-  /* ---------- staff account provisioning (Reception) ---------- */
+  /* ---------- staff account provisioning (Administration) ---------- */
   const createAccount = useCallback(
     (a: NewAccount) => {
-      if (userRef.current?.role !== "reception") {
-        toast("Only reception can create staff accounts", "danger");
+      if (userRef.current?.role !== "admin") {
+        toast("Only hospital administrators can create staff accounts", "danger");
         return;
       }
       void (async () => {

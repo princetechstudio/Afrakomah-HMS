@@ -78,7 +78,7 @@ export function StaffView() {
   const { db, user, mutate, toast, go } = useStore();
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
-  const canManageAccounts = user?.role === "reception";
+  const canManageAccounts = user?.role === "admin";
 
   const staff = db.staff.filter((s) => roleFilter === "all" || s.role === roleFilter);
 
@@ -164,11 +164,11 @@ export function StaffView() {
           {[
             { r: "Doctors", t: "Consultations, diagnoses, prescriptions, lab requests, full patient charts" },
             { r: "Nurses", t: "Vitals, ward care, bed map, medication administration, doctor alerts" },
-            { r: "Reception", t: "Registration, appointments, check-in, queue tokens and staff account provisioning" },
+            { r: "Reception", t: "Registration, appointments, check-in and queue tokens" },
             { r: "Lab staff", t: "Sample collection, processing, result entry & verification, reports" },
             { r: "Pharmacists", t: "Dispensing e-prescriptions, drug inventory, expiry & stock alerts" },
             { r: "Billing", t: "Invoices, payments, receipts, insurance claims, outstanding balances" },
-            { r: "Hospital administrators", t: "Read-only oversight of patients, appointments, medicines, emergency, lab, wards and beds, with AI insights" },
+            { r: "Hospital administrators", t: "Staff account provisioning plus read-only oversight of patients, appointments, medicines, emergency, lab, wards and beds, with AI insights" },
             { r: "Guaranteed", t: "A pharmacist cannot edit diagnoses; a receptionist cannot alter lab results" },
           ].map((x) => (
             <div key={x.r} className="rounded-lg border border-line-soft bg-paper/60 p-3 transition-colors hover:border-med-200">

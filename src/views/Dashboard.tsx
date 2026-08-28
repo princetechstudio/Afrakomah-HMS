@@ -1,7 +1,7 @@
 import { useStore } from "../store";
 import { todayISO, timeAgo, fmtTime, QUEUE_DEPTS, ghs } from "../data";
 import { Badge, Card, SectionHead, StatusPill, AreaChart, BarsChart, Donut, HBars, Sparkline, EcgStrip, Btn } from "../ui";
-import { IUsers, ICalendar, IBed, IZap, IReceipt, IFlask, IPill, IAlert, IChevR, IArrowR } from "../icons";
+import { IUsers, ICalendar, IBed, IZap, IReceipt, IFlask, IPill, IAlert, IChevR, IArrowR, IActivity } from "../icons";
 
 const ADM_V_DIS = [
   { label: "Mon", a: 2, b: 1 }, { label: "Tue", a: 1, b: 2 }, { label: "Wed", a: 3, b: 2 },
@@ -31,6 +31,17 @@ export default function Dashboard() {
   const outstanding = openBills.reduce((s, i) => s + Math.max(0, i.items.reduce((x, y) => x + y.amount, 0) - i.paid), 0);
   const todayPatients = new Set([...apptsToday.map((a) => a.patientMrn), ...activeEm.map((e) => e.patientMrn)]).size;
   const revenueToday = db.trends.revenue[db.trends.revenue.length - 1];
+  const aiSignals = [
+    activeEm.length > 0
+      ? `${activeEm.length} emergency case${activeEm.length === 1 ? "" : "s"} need active clinical attention.`
+      : "No active emergency cases require escalation.",
+    bedsFree === 0
+      ? "All beds are occupied or unavailable — review discharge and transfer planning."
+      : `${bedsFree} bed${bedsFree === 1 ? "" : "s"} available across ${db.wards.length} wards.`,
+    outStock > 0 || lowStock > 0
+      ? `${outStock + lowStock} medicine stock alert${outStock + lowStock === 1 ? "" : "s"} detected for pharmacy review.`
+      : "Medicine inventory is above configured reorder levels.",
+  ];
 
   const deptLoad = Object.entries(
     apptsToday.reduce<Record<string, number>>((acc, a) => ((acc[a.dept] = (acc[a.dept] ?? 0) + 1), acc), {})
@@ -180,6 +191,26 @@ export default function Dashboard() {
 
         {/* side column */}
         <div className="space-y-5">
+          {user?.role === "admin" && (
+            <Card className="overflow-hidden border-med-200 bg-gradient-to-br from-med-50 via-white to-sky-50 p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-med-600 text-white shadow-sm"><IActivity size={17} /></span>
+                <div>
+                  <p className="font-display text-[13px] font-bold text-ink">AI oversight insights</p>
+                  <p className="mt-0.5 text-[10.5px] text-ink-faint">Read-only signals generated from live hospital records</p>
+                </div>
+                <Badge tone="med" className="ml-auto">ADMIN</Badge>
+              </div>
+              <div className="mt-3 space-y-2">
+                {aiSignals.map((signal, index) => (
+                  <div key={index} className="flex gap-2 rounded-lg border border-white/80 bg-white/75 px-2.5 py-2 text-[11px] leading-snug text-ink-soft">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-med-500" />
+                    {signal}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
           <Card className="overflow-hidden">
             <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
               <h3 className="font-display text-[13px] font-bold">Live Activity</h3>

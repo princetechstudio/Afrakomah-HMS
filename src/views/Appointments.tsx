@@ -3,7 +3,7 @@ import { useStore, nid } from "../store";
 import { dISO, fmtDate, todayISO } from "../data";
 import type { Appointment } from "../data";
 import { Badge, Btn, Card, Field, Input, Modal, Select, StatusPill, Textarea, Avatar } from "../ui";
-import { IPlus, ICheck, IChevL, IChevR, ICalendar, IX, IClock, IUser } from "../icons";
+import { IPlus, ICheck, IChevL, IChevR, ICalendar, IX, IClock, IUser, IActivity } from "../icons";
 
 const SLOTS = (() => {
   const out: string[] = [];
@@ -25,11 +25,13 @@ const CHIP: Record<string, string> = {
 export default function Appointments() {
   const { db, user, mutate, toast, go } = useStore();
   const [date, setDate] = useState(todayISO());
+  const [showAll, setShowAll] = useState(false);
   const [booking, setBooking] = useState<{ doctorId: string; time: string } | null>(null);
   const [sel, setSel] = useState<Appointment | null>(null);
 
   const doctors = db.staff.filter((s) => s.role === "doctor");
   const dayAppts = db.appointments.filter((a) => a.date === date);
+  const allAppts = useMemo(() => [...db.appointments].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)), [db.appointments]);
   const canBook = user?.role === "reception" || user?.role === "doctor";
 
   const shift = (n: number) => {
@@ -83,14 +85,30 @@ export default function Appointments() {
           <h1 className="font-display text-lg font-extrabold text-ink">Appointments</h1>
           <p className="text-xs text-ink-faint">Doctor calendar with live availability — double-booking is blocked automatically</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {user?.role === "admin" && <Btn variant={showAll ? "soft" : "outline"} onClick={() => setShowAll((value) => !value)}>{showAll ? "Daily calendar" : `All appointments (${db.appointments.length})`}</Btn>}
+          {!showAll && <>
           <Btn variant="outline" onClick={() => shift(-1)}><IChevL size={14} /></Btn>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" />
           <Btn variant="outline" onClick={() => shift(1)}><IChevR size={14} /></Btn>
           {!isToday && <Btn variant="soft" onClick={() => setDate(todayISO())}>Today</Btn>}
+          </>}
         </div>
       </div>
+      {user?.role === "admin" && <div className="flex items-center gap-2 rounded-xl border border-med-200 bg-med-50 px-3 py-2 text-[11px] font-semibold text-med-800"><IActivity size={13} /> Read-only administrator view — scheduling and status changes are disabled.</div>}
 
+      {showAll ? (
+        <Card className="overflow-x-auto p-4">
+          <table className="w-full min-w-[760px] text-left text-xs">
+            <thead><tr className="border-b border-line text-[10px] uppercase tracking-wider text-ink-faint"><th className="py-2.5 pr-3">Date</th><th className="py-2.5 pr-3">Time</th><th className="py-2.5 pr-3">Patient</th><th className="py-2.5 pr-3">Doctor</th><th className="py-2.5 pr-3">Reason</th><th className="py-2.5">Status</th></tr></thead>
+            <tbody>{allAppts.map((a) => {
+              const p = db.patients.find((item) => item.mrn === a.patientMrn);
+              const d = db.staff.find((item) => item.id === a.doctorId);
+              return <tr key={a.id} onClick={() => go("patients", { patient: a.patientMrn })} className="cursor-pointer border-b border-line-soft/70 hover:bg-med-50/50"><td className="py-2.5 pr-3 font-mono text-ink-soft">{a.date}</td><td className="py-2.5 pr-3 font-mono font-semibold text-med-700">{a.time}</td><td className="py-2.5 pr-3 font-semibold text-ink">{p?.name}</td><td className="py-2.5 pr-3 text-ink-soft">{d?.name}</td><td className="max-w-[220px] truncate py-2.5 pr-3 text-ink-faint">{a.reason}</td><td className="py-2.5"><StatusPill s={a.status} /></td></tr>;
+            })}</tbody>
+          </table>
+        </Card>
+      ) : <>
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="dark"><ICalendar size={11} /> {fmtDate(date)}</Badge>
         <Badge tone="info">{counts.booked} booked</Badge>
@@ -194,6 +212,7 @@ export default function Appointments() {
           })()}
         </Modal>
       )}
+      </>}
     </div>
   );
 }
@@ -204,6 +223,7 @@ function BookingModal({ doctorId, time, date, onClose }: { doctorId: string; tim
   const [patientMrn, setPatientMrn] = useState(db.patients[0]?.mrn ?? "");
   const [type, setType] = useState<Appointment["type"]>("General");
   const [reason, setReason] = useState("");
+  const [aiNote, setAiNote] = useState<string | null>(null);
 
   const clash = db.appointments.some((a) => a.doctorId === doctorId && a.date === date && a.time === time && a.status !== "cancelled");
 
@@ -234,6 +254,16 @@ function BookingModal({ doctorId, time, date, onClose }: { doctorId: string; tim
     onClose();
   };
 
+  const suggestReason = () => {
+    const patient = db.patients.find((p) => p.mrn === patientMrn);
+    const context = patient?.history[0] ?? patient?.medications[0];
+    const suggestion = context
+      ? `${type} review — follow-up for ${context.toLowerCase()}`
+      : `${type} consultation — assessment of the patient's current concern`;
+    setReason(suggestion);
+    setAiNote("AI-assisted draft created from the selected patient record. Review before confirming.");
+  };
+
   return (
     <Modal title="Book Appointment" sub={`${doctor.name} · ${fmtDate(date)} at ${time} — slot reserved while you type`} onClose={onClose} w="max-w-md"
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn onClick={save} disabled={clash}><ICheck size={14} /> Confirm booking</Btn></>}>
@@ -249,7 +279,13 @@ function BookingModal({ doctorId, time, date, onClose }: { doctorId: string; tim
           </Select>
         </Field>
         <Field label="Reason for visit">
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Brief reason, e.g. persistent cough, 2 weeks" />
+          <Textarea value={reason} onChange={(e) => { setReason(e.target.value); setAiNote(null); }} placeholder="Brief reason, e.g. persistent cough, 2 weeks" />
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <button type="button" onClick={suggestReason} className="inline-flex items-center gap-1.5 rounded-lg border border-med-200 bg-med-50 px-2.5 py-1.5 text-[10.5px] font-bold text-med-700 transition-colors hover:border-med-400 hover:bg-med-100">
+              <IActivity size={12} /> AI assist
+            </button>
+            {aiNote && <span className="text-right text-[10px] leading-snug text-ink-faint">{aiNote}</span>}
+          </div>
         </Field>
         {clash && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">This slot is no longer available — double-booking prevented.</p>}
       </div>
