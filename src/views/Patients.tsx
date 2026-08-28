@@ -419,7 +419,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
 
       {tab === "labs" && (
         <Card className="p-4">
-          <SectionHead title="Laboratory Results" right={<Btn variant="ghost" onClick={() => go("lab")}>Open Lab module <IChevR size={13} /></Btn>} />
+          <SectionHead title="Laboratory Results" sub="Results entered by the laboratory are visible here before final verification." right={<Btn variant="ghost" onClick={() => go("lab")}>Open Lab module <IChevR size={13} /></Btn>} />
           <div className="space-y-2">
             {db.labOrders.filter((l) => l.patientMrn === mrn).map((l) => (
               <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft bg-paper/50 px-3 py-2.5">

@@ -25,7 +25,7 @@ import { NotificationsView, SettingsView } from "./views/Misc";
 
 const ACCESS: Record<Role, ViewId[]> = {
   admin: ["dashboard", "patients", "appointments", "doctors", "wards", "lab", "pharmacy", "emergency", "reports", "notifications", "staff"],
-  doctor: ["dashboard", "patients", "appointments", "queue", "doctors", "wards", "emergency", "reports", "notifications"],
+  doctor: ["dashboard", "patients", "appointments", "queue", "doctors", "wards", "lab", "emergency", "reports", "notifications"],
   nurse: ["dashboard", "patients", "queue", "wards", "lab", "pharmacy", "emergency", "reports", "notifications"],
   reception: ["dashboard", "patients", "appointments", "queue", "doctors", "staff", "reports", "notifications"],
   lab: ["dashboard", "patients", "queue", "lab", "reports", "notifications"],

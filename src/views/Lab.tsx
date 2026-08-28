@@ -115,7 +115,7 @@ export default function LabView() {
                       {canWork && o.status === "collected" && <Btn variant="soft" size="xs" onClick={() => advance(o, "processing")}><IFlask size={12} /> Process</Btn>}
                       {canWork && o.status === "processing" && <Btn size="xs" onClick={() => setEnterFor(o)}>Enter results</Btn>}
                       {canWork && o.status === "results" && <Btn size="xs" onClick={() => verify(o)}><ICheck size={12} /> Verify</Btn>}
-                      {o.status === "verified" && <Btn variant="outline" size="xs" onClick={() => setReportFor(o)}><IEye size={12} /> Report</Btn>}
+                      {(o.status === "results" || o.status === "verified") && <Btn variant="outline" size="xs" onClick={() => setReportFor(o)}><IEye size={12} /> {o.status === "results" ? "Review results" : "Report"}</Btn>}
                     </div>
                   </td>
                 </tr>
