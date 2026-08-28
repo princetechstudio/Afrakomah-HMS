@@ -30,7 +30,7 @@ export default function Appointments() {
 
   const doctors = db.staff.filter((s) => s.role === "doctor");
   const dayAppts = db.appointments.filter((a) => a.date === date);
-  const canBook = user?.role === "reception" || user?.role === "admin" || user?.role === "doctor";
+  const canBook = user?.role === "reception" || user?.role === "doctor";
 
   const shift = (n: number) => {
     const d = new Date(date + "T12:00:00");
@@ -166,10 +166,10 @@ export default function Appointments() {
         <Modal title={`Appointment ${sel.id}`} sub={`${fmtDate(sel.date)} at ${sel.time} · ${sel.type} consultation`} onClose={() => setSel(null)} w="max-w-md"
           footer={
             <>
-              {sel.status === "scheduled" && <Btn onClick={() => setStatus(sel, "checked-in")}><ICheck size={14} /> Check in & issue token</Btn>}
-              {sel.status === "checked-in" && <Btn onClick={() => setStatus(sel, "in-consultation")}><ICheck size={14} /> Start consultation</Btn>}
-              {sel.status === "in-consultation" && <Btn onClick={() => setStatus(sel, "completed")}><ICheck size={14} /> Mark completed</Btn>}
-              {(sel.status === "scheduled" || sel.status === "checked-in") && <Btn variant="danger" onClick={() => setStatus(sel, "cancelled")}><IX size={14} /> Cancel</Btn>}
+              {canBook && sel.status === "scheduled" && <Btn onClick={() => setStatus(sel, "checked-in")}><ICheck size={14} /> Check in & issue token</Btn>}
+              {canBook && sel.status === "checked-in" && <Btn onClick={() => setStatus(sel, "in-consultation")}><ICheck size={14} /> Start consultation</Btn>}
+              {canBook && sel.status === "in-consultation" && <Btn onClick={() => setStatus(sel, "completed")}><ICheck size={14} /> Mark completed</Btn>}
+              {canBook && (sel.status === "scheduled" || sel.status === "checked-in") && <Btn variant="danger" onClick={() => setStatus(sel, "cancelled")}><IX size={14} /> Cancel</Btn>}
             </>
           }>
           {(() => {

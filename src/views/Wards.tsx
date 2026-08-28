@@ -29,8 +29,8 @@ export default function WardsView() {
   const [maternityOpen, setMaternityOpen] = useState(false);
 
   const role = user?.role;
-  const canManage = role === "nurse" || role === "doctor" || role === "admin";
-  const canRestructure = role === "admin" || role === "nurse";
+  const canManage = role === "nurse" || role === "doctor";
+  const canRestructure = role === "nurse";
   const wardCfg = wardOf(db.wards, ward);
   const beds = db.beds.filter((b) => b.ward === ward);
   const counts = (s: Bed["status"]) => db.beds.filter((b) => b.status === s).length;
@@ -183,7 +183,7 @@ export default function WardsView() {
                       <p className="text-[10.5px] text-ink-faint">{a.diagnosis} · {doc?.name} · day {nights} ({ghs(a.dailyCharge * nights)})</p>
                     </div>
                   </div>
-                  <Btn variant="ghost" size="xs" onClick={() => setNursingFor(a.patientMrn)}>Nursing <IChevR size={11} /></Btn>
+                  {role === "nurse" && <Btn variant="ghost" size="xs" onClick={() => setNursingFor(a.patientMrn)}>Nursing <IChevR size={11} /></Btn>}
                 </div>
               );
             })}
@@ -196,7 +196,7 @@ export default function WardsView() {
 
       {ward === "E" && (
         <Card className="p-4">
-          <SectionHead title="Labour Ward Register" sub={`${db.maternityRecords.length} maternity record(s) · ANC, delivery, newborn and discharge details`} right={<Btn onClick={() => setMaternityOpen(true)}><IPlus size={13} /> New maternity record</Btn>} />
+          <SectionHead title="Labour Ward Register" sub={`${db.maternityRecords.length} maternity record(s) · ANC, delivery, newborn and discharge details`} right={role === "nurse" ? <Btn onClick={() => setMaternityOpen(true)}><IPlus size={13} /> New maternity record</Btn> : undefined} />
           <div className="divide-y divide-line-soft/70">
             {db.maternityRecords.slice(0, 8).map((record) => {
               const mother = db.patients.find((p) => p.mrn === record.motherMrn);
@@ -465,7 +465,7 @@ function OccupiedModal({ bed, onClose }: { bed: Bed; onClose: () => void }) {
   const adm = db.admissions.find((a) => a.bedId === bed.id && a.status === "active");
   const p = db.patients.find((x) => x.mrn === bed.patientMrn);
   const [note, setNote] = useState("");
-  const canManage = user?.role === "nurse" || user?.role === "doctor" || user?.role === "admin";
+  const canManage = user?.role === "nurse" || user?.role === "doctor";
 
   const discharge = () => {
     if (!adm) return;

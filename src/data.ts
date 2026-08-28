@@ -409,10 +409,10 @@ export const atToday = (hh: number, mm = 0) => {
 /* ---------------- catalogs ---------------- */
 
 export const ROLE_META: Record<Role, { label: string; blurb: string }> = {
-  admin: { label: "Administrator", blurb: "Full system control" },
+  admin: { label: "Hospital Administrator", blurb: "Read-only oversight & AI insights" },
   doctor: { label: "Doctor", blurb: "Consultations & records" },
   nurse: { label: "Nurse", blurb: "Wards & vitals" },
-  reception: { label: "Receptionist", blurb: "Registration & booking" },
+  reception: { label: "Receptionist", blurb: "Registration, booking & staff accounts" },
   lab: { label: "Lab Technician", blurb: "Samples & results" },
   pharmacist: { label: "Pharmacist", blurb: "Dispensing & stock" },
   billing: { label: "Billing Officer", blurb: "Invoices & claims" },

@@ -13,7 +13,7 @@ export default function BillingView() {
   const [receiptFor, setReceiptFor] = useState<Invoice | null>(null);
   const [showNew, setShowNew] = useState(false);
 
-  const canWork = user?.role === "billing" || user?.role === "admin";
+  const canWork = user?.role === "billing";
   const today = todayISO();
   const revenueToday = db.invoices.filter((i) => i.date === today).reduce((s, i) => s + i.paid, 0) + 6340;
   const outstanding = db.invoices.reduce((s, i) => s + invBalance(i), 0);
@@ -95,7 +95,7 @@ function InvoiceModal({ inv, onClose, onReceipt }: { inv: Invoice; onClose: () =
   const [method, setMethod] = useState("Cash");
   const p = db.patients.find((x) => x.mrn === inv.patientMrn);
   const bal = invBalance(inv);
-  const canWork = user?.role === "billing" || user?.role === "admin";
+  const canWork = user?.role === "billing";
   const patientBalance = db.invoices.filter((i) => i.patientMrn === inv.patientMrn).reduce((sum, i) => sum + invBalance(i), 0);
 
   const clearPatient = () => {
@@ -270,7 +270,7 @@ function NewInvoiceModal({ onClose }: { onClose: () => void }) {
 export function InsuranceView() {
   const { db, user, mutate, toast } = useStore();
   const [showNew, setShowNew] = useState(false);
-  const canWork = user?.role === "billing" || user?.role === "admin";
+  const canWork = user?.role === "billing";
 
   const advance = (id: string, to: "submitted" | "approved" | "rejected" | "paid") => {
     const c = db.claims.find((x) => x.id === id)!;

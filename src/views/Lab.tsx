@@ -15,7 +15,7 @@ export default function LabView() {
   const [reportFor, setReportFor] = useState<LabOrder | null>(null);
   const [showNew, setShowNew] = useState(false);
 
-  const canWork = user?.role === "lab" || user?.role === "admin";
+  const canWork = user?.role === "lab";
 
   const advance = (o: LabOrder, to: LabStatus) => {
     const p = db.patients.find((x) => x.mrn === o.patientMrn);
@@ -56,7 +56,6 @@ export default function LabView() {
           <h1 className="font-display text-lg font-extrabold text-ink">Laboratory</h1>
           <p className="text-xs text-ink-faint">Doctor orders → sample → processing → results → verification → doctor notified</p>
         </div>
-        {user?.role === "admin" && <Btn onClick={() => setShowNew(true)}><IPlus size={14} /> New lab order</Btn>}
       </div>
 
       {/* pipeline strip */}

@@ -19,7 +19,7 @@ export default function ProvisionAccountModal({ onClose }: { onClose: () => void
   };
 
   return (
-    <Modal title="Create Staff Account" sub="Adds a sign-in for this role on the workstation screen" onClose={onClose} w="max-w-lg"
+    <Modal title="Create Staff Account" sub="Provision a secure sign-in and role-specific workspace" onClose={onClose} w="max-w-lg"
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn onClick={submit}><IUser size={13} /> Create account</Btn></>}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Full name *" className="col-span-2"><Input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="e.g. Dr. Ama Owusu" autoFocus /></Field>
@@ -30,7 +30,7 @@ export default function ProvisionAccountModal({ onClose }: { onClose: () => void
         <Field label="Phone"><Input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="024 …" /></Field>
       </div>
       {err && <p className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold leading-snug text-red-800"><IAlert size={14} className="mt-0.5 shrink-0" /> {err}</p>}
-      <p className="mt-3 rounded-lg bg-paper/70 px-3 py-2 text-[10.5px] leading-relaxed text-ink-faint"><IList size={12} className="mr-1 inline" /> The worker will sign in using this name and password.</p>
+      <p className="mt-3 rounded-lg bg-paper/70 px-3 py-2 text-[10.5px] leading-relaxed text-ink-faint"><IList size={12} className="mr-1 inline" /> The worker will sign in using their staff ID and password. Hospital Administrator accounts receive read-only operational oversight and AI analytics.</p>
     </Modal>
   );
 }

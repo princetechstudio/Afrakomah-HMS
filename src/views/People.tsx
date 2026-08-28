@@ -78,7 +78,7 @@ export function StaffView() {
   const { db, user, mutate, toast, go } = useStore();
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
-  const isAdmin = user?.role === "admin";
+  const canManageAccounts = user?.role === "reception";
 
   const staff = db.staff.filter((s) => roleFilter === "all" || s.role === roleFilter);
 
@@ -102,7 +102,7 @@ export function StaffView() {
           <p className="text-xs text-ink-faint">{db.staff.length} employees · role-based access enforced across every module</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {isAdmin && <Btn onClick={() => setCreateOpen(true)}><IPlus size={13} /> Create user account</Btn>}
+          {canManageAccounts && <Btn onClick={() => setCreateOpen(true)}><IPlus size={13} /> Create staff account</Btn>}
           {["all", "admin", "doctor", "nurse", "reception", "lab", "pharmacist", "billing"].map((r) => (
             <button key={r} onClick={() => setRoleFilter(r)} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold capitalize transition-all ${roleFilter === r ? "bg-pine-900 text-mint" : "bg-white border border-line text-ink-soft hover:border-med-300"}`}>
               {r}
@@ -122,7 +122,7 @@ export function StaffView() {
               <th className="py-2.5 pr-3 font-semibold">Contact</th>
               <th className="py-2.5 pr-3 font-semibold">Duty</th>
               <th className="py-2.5 pr-3 font-semibold">Status</th>
-              {isAdmin && <th className="py-2.5 font-semibold">Account</th>}
+              {canManageAccounts && <th className="py-2.5 font-semibold">Account</th>}
             </tr>
           </thead>
           <tbody>
@@ -145,7 +145,7 @@ export function StaffView() {
                     <span className="font-mono text-[10px] text-ink-soft">{s.schedule.join(" ")}</span>
                   </span>
                 </td>
-                {isAdmin && (
+                {canManageAccounts && (
                   <td className="py-2.5">
                     <Btn variant={s.active ? "outline" : "soft"} size="xs" onClick={() => toggleActive(s.id)}>
                       {s.active ? "Deactivate" : "Activate"}
@@ -164,11 +164,11 @@ export function StaffView() {
           {[
             { r: "Doctors", t: "Consultations, diagnoses, prescriptions, lab requests, full patient charts" },
             { r: "Nurses", t: "Vitals, ward care, bed map, medication administration, doctor alerts" },
-            { r: "Reception", t: "Registration, appointments, check-in, queue tokens, patient search" },
+            { r: "Reception", t: "Registration, appointments, check-in, queue tokens and staff account provisioning" },
             { r: "Lab staff", t: "Sample collection, processing, result entry & verification, reports" },
             { r: "Pharmacists", t: "Dispensing e-prescriptions, drug inventory, expiry & stock alerts" },
             { r: "Billing", t: "Invoices, payments, receipts, insurance claims, outstanding balances" },
-            { r: "Admins", t: "Everything above, plus staff accounts, audit trail, backups, settings" },
+            { r: "Hospital administrators", t: "Read-only oversight of patients, appointments, medicines, emergency, lab, wards and beds, with AI insights" },
             { r: "Guaranteed", t: "A pharmacist cannot edit diagnoses; a receptionist cannot alter lab results" },
           ].map((x) => (
             <div key={x.r} className="rounded-lg border border-line-soft bg-paper/60 p-3 transition-colors hover:border-med-200">

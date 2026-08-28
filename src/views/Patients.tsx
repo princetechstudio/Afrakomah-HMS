@@ -25,7 +25,7 @@ function PatientList() {
   const [status, setStatus] = useState("all");
   const [showReg, setShowReg] = useState(false);
 
-  const canRegister = user?.role === "reception" || user?.role === "admin";
+  const canRegister = user?.role === "reception";
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase().replace(/\s+/g, "");
@@ -242,10 +242,10 @@ function PatientDetail({ mrn }: { mrn: string }) {
   }
 
   const role = user?.role ?? "reception";
-  const canConsult = role === "nurse" || role === "admin";
-  const canOrder = role === "doctor" || role === "admin";
-  const canVitals = role === "nurse" || role === "admin";
-  const canBill = role === "billing" || role === "admin";
+  const canConsult = role === "nurse";
+  const canOrder = role === "doctor";
+  const canVitals = role === "nurse";
+  const canBill = role === "billing";
 
   const events: TimelineEvent[] = [
     { at: p.registeredAt, kind: "reg" as const, title: "Patient registered", sub: `MRN ${p.mrn} issued at Front Desk`, mrn },
@@ -333,7 +333,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
             </>}
             {canVitals && <Btn variant="soft" onClick={() => setShowVitals(true)}><IActivity size={14} /> Record vitals</Btn>}
             {canBill && <Btn variant="outline" onClick={() => setShowBill(true)}><IReceipt size={14} /> Add charge</Btn>}
-            {(role === "nurse" || role === "admin") && p.status !== "admitted" && (
+            {role === "nurse" && p.status !== "admitted" && (
               <Btn variant="dark" onClick={() => go("wards")}><IBed size={14} /> Admit to ward</Btn>
             )}
           </div>

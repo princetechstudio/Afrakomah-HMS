@@ -23,7 +23,7 @@ export default function EmergencyView() {
     return () => window.clearInterval(t);
   }, []);
 
-  const canWork = user?.role === "doctor" || user?.role === "nurse" || user?.role === "admin";
+  const canWork = user?.role === "doctor" || user?.role === "nurse";
   const active = db.emergencies.filter((e) => e.status === "waiting" || e.status === "in-treatment");
   const waitMins = active.map((e) => Math.floor((Date.now() - new Date(e.arrival).getTime()) / 60000));
   const avgWait = waitMins.length ? Math.round(waitMins.reduce((a, b) => a + b, 0) / waitMins.length) : 0;
@@ -151,7 +151,7 @@ export default function EmergencyView() {
                       {canWork && (
                         <div className="mt-2 flex gap-1">
                           {c.status === "waiting" && <Btn variant="soft" size="xs" onClick={() => startTreatment(c)}><IActivity size={11} /> Treat</Btn>}
-                          <Btn variant="ghost" size="xs" onClick={() => setActionFor(c)}>Actions</Btn>
+                          {canWork && <Btn variant="ghost" size="xs" onClick={() => setActionFor(c)}>Actions</Btn>}
                         </div>
                       )}
                     </div>

@@ -22,7 +22,7 @@ export default function PharmacyView() {
   const [editMed, setEditMed] = useState<string | null>(null);
   const [addMed, setAddMed] = useState(false);
 
-  const canDispense = user?.role === "pharmacist" || user?.role === "admin";
+  const canDispense = user?.role === "pharmacist";
   const canManageStock = canDispense;
   const t = todayISO();
   const expired = db.medicines.filter((m) => m.expiry < t);
