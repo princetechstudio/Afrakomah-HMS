@@ -1,5 +1,5 @@
 const CACHE_NAME = "afrakomah-hms-v2";
-const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/logo.png"];
+const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/logo.png", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
