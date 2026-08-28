@@ -2,6 +2,7 @@ import { useStore } from "../store";
 import { todayISO, timeAgo, fmtTime, QUEUE_DEPTS, ghs } from "../data";
 import { Badge, Card, SectionHead, StatusPill, AreaChart, BarsChart, Donut, HBars, Sparkline, EcgStrip, Btn } from "../ui";
 import { IUsers, ICalendar, IBed, IZap, IReceipt, IFlask, IPill, IAlert, IChevR, IArrowR, IActivity } from "../icons";
+import type { Role } from "../data";
 
 const ADM_V_DIS = [
   { label: "Mon", a: 2, b: 1 }, { label: "Tue", a: 1, b: 2 }, { label: "Wed", a: 3, b: 2 },
@@ -16,9 +17,20 @@ const DIAGNOSES = [
   { label: "Urinary tract infection", value: 17, color: "#be123c" },
 ];
 
+const DEPARTMENT_DASHBOARDS: Record<Role, { title: string; description: string; responsibilities: string[]; kpis: string[] }> = {
+  admin: { title: "Hospital Command Center", description: "Complete read-only oversight of every department, patient, appointment, medicine, emergency, laboratory, ward and bed record.", responsibilities: ["Monitor hospital-wide activity", "Review AI oversight signals", "Audit operational performance"], kpis: ["all"] },
+  doctor: { title: "Clinical Care Dashboard", description: "Coordinate consultations, review patient histories and act on laboratory results for assigned clinical care.", responsibilities: ["Review appointments and patient records", "Review lab results and clinical notes", "Manage consultations, prescriptions and lab requests"], kpis: ["Today's Patients", "Appointments Today", "Pending Lab Tests", "Emergency Cases"] },
+  nurse: { title: "Nursing Operations Dashboard", description: "Monitor ward capacity, admissions, vitals and emergency care while keeping bedside operations moving.", responsibilities: ["Monitor wards, beds and admissions", "Record and review patient vitals", "Support emergency and queue operations"], kpis: ["Currently Admitted", "Available Beds", "Emergency Cases", "Today's Patients"] },
+  reception: { title: "Front Desk Dashboard", description: "Manage patient registration, appointment scheduling, check-in and queue flow for a smooth patient arrival experience.", responsibilities: ["Register and find patients", "Book and check in appointments", "Issue queue tokens and coordinate arrivals"], kpis: ["Today's Patients", "Appointments Today"] },
+  lab: { title: "Laboratory Dashboard", description: "Track the laboratory pipeline from sample collection through processing, result entry and verification.", responsibilities: ["Collect and process samples", "Enter and verify laboratory results", "Notify requesting doctors when results are ready"], kpis: ["Pending Lab Tests", "Today's Patients"] },
+  pharmacist: { title: "Pharmacy Dashboard", description: "Safely dispense prescriptions and maintain medicine inventory, expiry monitoring and stock availability.", responsibilities: ["Dispense e-prescriptions", "Monitor medicine stock and expiry", "Raise replenishment needs"], kpis: ["Low Stock Medicines", "Out of Stock", "Today's Patients"] },
+  billing: { title: "Billing Dashboard", description: "Track invoices, payments, insurance claims and outstanding balances across patient accounts.", responsibilities: ["Review patient balances", "Process payments and receipts", "Manage insurance claims"], kpis: ["Pending Bills", "Today's Revenue", "Today's Patients"] },
+};
+
 export default function Dashboard() {
   const { db, user, go } = useStore();
   const today = todayISO();
+  const department = DEPARTMENT_DASHBOARDS[user?.role ?? "admin"];
 
   const apptsToday = db.appointments.filter((a) => a.date === today);
   const activeEm = db.emergencies.filter((e) => e.status === "waiting" || e.status === "in-treatment");
@@ -67,6 +79,7 @@ export default function Dashboard() {
     { icon: <IPill size={16} />, label: "Low Stock Medicines", value: String(lowStock), sub: `${db.medicines.filter((m) => m.expiry <= todayISO()).length} expired batch`, tone: "text-amber-800 bg-amber-50" },
     { icon: <IPill size={16} />, label: "Out of Stock", value: String(outStock), sub: "Reorder raised automatically", tone: "text-red-700 bg-red-50" },
   ];
+  const visibleKpis = department.kpis.includes("all") ? kpis : kpis.filter((k) => department.kpis.includes(k.label));
 
   return (
     <div className="fade-up space-y-5">
@@ -86,7 +99,7 @@ export default function Dashboard() {
               Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {user?.name.split(" ")[0]}
             </h1>
             <p className="mt-0.5 text-xs text-white/60">
-              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · Afrakomah General Hospital, Accra
+              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {department.title}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -96,9 +109,26 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <Card className="border-med-200 bg-white p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-sm font-bold text-ink">{department.title}</p>
+            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-ink-soft">{department.description}</p>
+          </div>
+          <Badge tone={user?.role === "admin" ? "dark" : "med"}>{user?.role === "admin" ? "FULL OVERSIGHT" : "DEPARTMENT SCOPE"}</Badge>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {department.responsibilities.map((item) => (
+            <div key={item} className="flex items-center gap-2 rounded-lg bg-paper/70 px-2.5 py-2 text-[11px] font-semibold text-ink-soft">
+              <IActivity size={13} className="shrink-0 text-med-600" /> {item}
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {/* KPI bento */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-        {kpis.map((k, i) => (
+        {visibleKpis.map((k, i) => (
           <div
             key={i}
             className={`group rounded-xl border border-line bg-white p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-med-300 hover:shadow-lg hover:shadow-med-600/5 ${k.wide ? "col-span-2 md:col-span-2" : ""}`}

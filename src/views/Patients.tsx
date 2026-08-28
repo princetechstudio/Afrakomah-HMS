@@ -431,8 +431,9 @@ function PatientDetail({ mrn }: { mrn: string }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {l.results && l.status === "verified" && (
+                  {l.results && (l.status === "results" || l.status === "verified") && (
                     <span className="font-mono text-[10.5px] text-ink-soft">
+                      {l.status === "results" ? "Results available for doctor review · " : ""}
                       {l.results.filter((r) => r.flag !== "-").slice(0, 2).map((r) => `${r.marker} ${r.value}`).join(" · ") || "All within range"}
                     </span>
                   )}

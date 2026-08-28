@@ -157,7 +157,7 @@ function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void
           return { marker: m.marker, value: Number.isNaN(v) ? raw || "—" : String(v), unit: m.unit, ref: m.ref, flag };
         });
       },
-      { audit: `Entered ${cat.name} results for ${p?.name} (${order.id})` }
+      { audit: `Entered ${cat.name} results for ${p?.name} (${order.id})`, notify: { text: `Lab results available: ${cat.name} for ${p?.name} — requesting doctor review`, icon: "lab", roles: ["doctor", "admin"] } }
     );
     toast("Results entered — send for verification when reviewed", "ok");
     onClose();
