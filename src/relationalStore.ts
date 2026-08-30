@@ -38,7 +38,12 @@ export async function loadRelational(): Promise<DB> {
   return db;
 }
 
-const upsert = async (table: string, values: Row[], conflict: string) => { if (values.length) { const { error } = await supabase.from(table).upsert(values, { onConflict: conflict }); if (error) throw error; } };
+const upsert = async (table: string, values: Row[], conflict: string) => {
+  if (!values.length) return;
+  const uniqueValues = [...new Map(values.map((value) => [String(value[conflict]), value])).values()];
+  const { error } = await supabase.from(table).upsert(uniqueValues, { onConflict: conflict });
+  if (error) throw error;
+};
 export async function saveRelational(db: DB): Promise<void> {
   await upsert("patients", db.patients.map((p) => ({ mrn: p.mrn, national_id: p.nationalId, full_name: p.name, date_of_birth: p.dob, gender: p.gender, phone: p.phone, address: p.address, blood_group: p.bloodGroup, allergies: p.allergies, insurance: p.insurance, next_of_kin: p.nextOfKin, history: p.history, medications: p.medications, status: p.status, financially_cleared_at: p.financiallyClearedAt ?? null })), "mrn");
   await upsert("wards", db.wards.map((w) => ({ ward_code: w.id, name: w.name, nightly_charge: w.daily })), "ward_code");
