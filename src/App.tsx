@@ -5,7 +5,7 @@ import { ROLE_META, timeAgo } from "./data";
 import type { Role, ViewId } from "./data";
 import { Avatar, Badge, Btn, EcgStrip } from "./ui";
 import {
-  IPulse, IGrid, IUsers, ICalendar, IList, IStetho, IBed, IFlask, IPill, IBox, IZap,
+  IGrid, IUsers, ICalendar, IList, IStetho, IBed, IFlask, IPill, IBox, IZap,
   IReceipt, IShield, IChart, IBell, IGear, ISearch, ILogout, IChevR, ICard, ICheck, IAlert, IActivity, IRefresh, IMenu,
 } from "./icons";
 import Dashboard from "./views/Dashboard";
@@ -139,7 +139,7 @@ function Login() {
         <div className="bg-pine-grid absolute inset-0" />
         <div className="relative">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-mint/15 text-mint"><IPulse size={26} /></span>
+            <img src="/logo.png" alt="Afrakomah Community Clinic" className="h-11 w-11 rounded-xl object-contain" />
             <div>
               <p className="font-display text-xl font-extrabold tracking-tight">Afrakomah <span className="text-mint">HMS</span></p>
               <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-white/50">Integrated Hospital Management</p>
@@ -171,7 +171,7 @@ function Login() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-lg">
           <div className="mb-6 flex items-center gap-2 lg:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-pine-900 text-mint"><IPulse size={20} /></span>
+            <img src="/logo.png" alt="Afrakomah Community Clinic" className="h-9 w-9 rounded-xl object-contain" />
             <p className="font-display text-lg font-extrabold">Afrakomah HMS</p>
           </div>
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-med-600">Staff workstation sign-in</p>
@@ -244,7 +244,7 @@ function Shell() {
       {/* sidebar — slide-over drawer on mobile, fixed rail on desktop */}
       <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[240px] shrink-0 flex-col bg-pine-950 text-white shadow-2xl transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-auto lg:w-[218px] lg:translate-x-0 lg:shadow-none ${drawer ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center gap-2.5 px-4 py-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-mint/15 text-mint"><IPulse size={22} /></span>
+          <img src="/logo.png" alt="Afrakomah Community Clinic" className="h-9 w-9 rounded-xl object-contain" />
           <div>
             <p className="font-display text-[15px] font-extrabold leading-none tracking-tight">Afrakomah</p>
             <p className="mt-0.5 font-mono text-[8.5px] uppercase tracking-[0.2em] text-mint/80">HMS v3.2</p>
