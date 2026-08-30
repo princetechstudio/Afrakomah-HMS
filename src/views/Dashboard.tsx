@@ -17,7 +17,15 @@ const DEPARTMENT_DASHBOARDS: Record<Role, { title: string; description: string; 
 export default function Dashboard() {
   const { db, user, go } = useStore();
   const today = todayISO();
-  const department = DEPARTMENT_DASHBOARDS[user?.role ?? "admin"];
+  const role = user?.role ?? "admin";
+  const department = DEPARTMENT_DASHBOARDS[role];
+  const isAdmin = role === "admin";
+  const showsAppointments = isAdmin || role === "doctor" || role === "nurse";
+  const showsAdmissions = isAdmin || role === "nurse";
+  const queueKeys = isAdmin
+    ? QUEUE_DEPTS.map((queue) => queue.key)
+    : role === "lab" ? ["lab"] : role === "pharmacist" ? ["pharm"] : role === "billing" ? ["bill"] : ["consult"];
+  const revenueKind = role === "lab" ? "lab" : role === "pharmacist" ? "pharmacy" : role === "nurse" ? "bed" : role === "doctor" ? "consultation" : role === "reception" ? "consultation" : null;
 
   const apptsToday = db.appointments.filter((a) => a.date === today);
   const activeEm = db.emergencies.filter((e) => e.status === "waiting" || e.status === "in-treatment");
@@ -29,7 +37,15 @@ export default function Dashboard() {
   const openBills = db.invoices.filter((i) => i.status !== "paid");
   const outstanding = openBills.reduce((s, i) => s + Math.max(0, i.items.reduce((x, y) => x + y.amount, 0) - i.paid), 0);
   const todayPatients = new Set([...apptsToday.map((a) => a.patientMrn), ...activeEm.map((e) => e.patientMrn)]).size;
-  const revenueToday = db.payments.filter((payment) => payment.paidAt.slice(0, 10) === today).reduce((sum, payment) => sum + payment.amount, 0);
+  const paidForKind = (payment: typeof db.payments[number], kind: string | null) => {
+    if (!kind) return payment.amount;
+    const invoice = db.invoices.find((item) => item.id === payment.invoiceId);
+    const items = invoice?.items.filter((item) => item.kind === kind) ?? [];
+    const total = invoice?.items.reduce((sum, item) => sum + item.amount, 0) ?? 0;
+    const scoped = items.reduce((sum, item) => sum + item.amount, 0);
+    return total > 0 ? payment.amount * (scoped / total) : 0;
+  };
+  const revenueToday = db.payments.filter((payment) => payment.paidAt.slice(0, 10) === today).reduce((sum, payment) => sum + paidForKind(payment, revenueKind), 0);
   const trendDays = Array.from({ length: 14 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
@@ -37,7 +53,7 @@ export default function Dashboard() {
     return date.toISOString().slice(0, 10);
   });
   const registrationsTrend = trendDays.map((day) => db.patients.filter((patient) => patient.registeredAt.slice(0, 10) === day).length);
-  const revenueTrend = trendDays.map((day) => db.payments.filter((payment) => payment.paidAt.slice(0, 10) === day).reduce((sum, payment) => sum + payment.amount, 0));
+  const revenueTrend = trendDays.map((day) => db.payments.filter((payment) => payment.paidAt.slice(0, 10) === day).reduce((sum, payment) => sum + paidForKind(payment, revenueKind), 0));
   const weeklyFlow = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
@@ -49,8 +65,12 @@ export default function Dashboard() {
       b: db.admissions.filter((admission) => admission.dischargeDate?.slice(0, 10) === day).length,
     };
   });
+  const scopedConsultations = isAdmin ? db.consultations : db.consultations.filter((consultation) => {
+    const doctor = db.staff.find((staff) => staff.id === consultation.doctorId);
+    return role === "doctor" ? consultation.doctorId === user?.id : doctor?.role === role;
+  });
   const diagnoses = Object.entries(
-    db.consultations.reduce<Record<string, number>>((counts, consultation) => {
+    scopedConsultations.reduce<Record<string, number>>((counts, consultation) => {
       const diagnosis = consultation.diagnosis.trim();
       if (diagnosis) counts[diagnosis] = (counts[diagnosis] ?? 0) + 1;
       return counts;
@@ -86,9 +106,11 @@ export default function Dashboard() {
 
   const kpis = [
     { icon: <IUsers size={16} />, label: "Today's Patients", value: String(todayPatients), sub: `${activeEm.length} via emergency`, tone: "text-med-700 bg-med-50", spark: registrationsTrend },
-    { icon: <ICalendar size={16} />, label: "Appointments Today", value: String(apptsToday.length), sub: `${apptsToday.filter((a) => a.status === "completed").length} completed · ${apptsToday.filter((a) => a.status === "checked-in").length} in queue`, tone: "text-sky-700 bg-sky-50" },
-    { icon: <IBed size={16} />, label: "Currently Admitted", value: String(activeAdm.length), sub: `${db.beds.length - bedsFree} of ${db.beds.length} beds in use`, tone: "text-teal-700 bg-teal-50" },
-    { icon: <IBed size={16} />, label: "Available Beds", value: String(bedsFree), sub: `${db.beds.filter((b) => b.status === "cleaning").length} cleaning · ${db.beds.filter((b) => b.status === "reserved").length} reserved`, tone: "text-emerald-700 bg-emerald-50" },
+    ...(showsAppointments ? [{ icon: <ICalendar size={16} />, label: "Appointments Today", value: String(apptsToday.length), sub: `${apptsToday.filter((a) => a.status === "completed").length} completed · ${apptsToday.filter((a) => a.status === "checked-in").length} in queue`, tone: "text-sky-700 bg-sky-50" }] : []),
+    ...(showsAdmissions ? [
+      { icon: <IBed size={16} />, label: "Currently Admitted", value: String(activeAdm.length), sub: `${db.beds.length - bedsFree} of ${db.beds.length} beds in use`, tone: "text-teal-700 bg-teal-50" },
+      { icon: <IBed size={16} />, label: "Available Beds", value: String(bedsFree), sub: `${db.beds.filter((b) => b.status === "cleaning").length} cleaning · ${db.beds.filter((b) => b.status === "reserved").length} reserved`, tone: "text-emerald-700 bg-emerald-50" },
+    ] : []),
     { icon: <IZap size={16} />, label: "Emergency Cases", value: String(activeEm.length), sub: `${activeEm.filter((e) => e.triage === "critical").length} critical — red`, tone: "text-red-700 bg-red-50" },
     { icon: <IReceipt size={16} />, label: "Today's Revenue", value: ghs(revenueToday), sub: "Live collections total", tone: "text-med-700 bg-med-50", spark: revenueTrend, wide: true },
     { icon: <IReceipt size={16} />, label: "Pending Bills", value: String(openBills.length), sub: `${ghs(outstanding)} outstanding`, tone: "text-amber-800 bg-amber-50" },
@@ -170,12 +192,12 @@ export default function Dashboard() {
               <AreaChart values={registrationsTrend} labels={trendDays.map((day) => day.slice(5))} />
             </Card>
             <Card className="p-4">
-              <SectionHead title="Revenue Trend" sub="Daily collections, GH₵" right={<Badge tone="ok">GH₵ {(revenueTrend.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}k total</Badge>} />
+              <SectionHead title="Revenue Trend" sub={`${isAdmin ? "Hospital-wide" : department.title.replace(" Dashboard", "")} collections, GH₵`} right={<Badge tone="ok">GH₵ {(revenueTrend.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}k total</Badge>} />
               <AreaChart values={revenueTrend} labels={trendDays.map((day) => day.slice(5))} color="#1d6fb8" money />
             </Card>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
+          {showsAdmissions && <div className="grid gap-5 md:grid-cols-2">
             <Card className="p-4">
               <SectionHead title="Admissions vs Discharges" sub="This week" />
               <BarsChart data={weeklyFlow} aLabel="Admissions" bLabel="Discharges" />
@@ -197,9 +219,9 @@ export default function Dashboard() {
                 </div>
               </div>
             </Card>
-          </div>
+          </div>}
 
-          <Card className="p-4">
+          {showsAppointments && <Card className="p-4">
             <SectionHead
               title="Today's Appointments"
               sub={`${apptsToday.length} booked across ${deptLoad.length} departments`}
@@ -233,7 +255,7 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </Card>}
         </div>
 
         {/* side column */}
@@ -281,38 +303,44 @@ export default function Dashboard() {
           </Card>
 
           <Card className="p-4">
-            <SectionHead title="Needs Attention" sub="Auto-raised alerts" right={<Badge tone="danger">{2 + (activeEm.filter((e) => e.triage === "critical").length ? 1 : 0)} active</Badge>} />
+            <SectionHead title="Needs Attention" sub={`${isAdmin ? "Hospital-wide" : department.title.replace(" Dashboard", "")} alerts`} right={<Badge tone="danger">{isAdmin ? 2 + (activeEm.filter((e) => e.triage === "critical").length ? 1 : 0) : role === "lab" ? pendingLabs : role === "pharmacist" ? lowStock + outStock : role === "billing" ? openBills.length : role === "doctor" ? db.labOrders.filter((l) => l.status === "verified").length : role === "nurse" ? activeEm.length : apptsToday.length} active</Badge>} />
             <div className="space-y-2">
-              {activeEm.filter((e) => e.triage === "critical").map((e) => (
+              {(isAdmin || role === "nurse" || role === "doctor") && activeEm.filter((e) => e.triage === "critical").map((e) => (
                 <button key={e.id} onClick={() => go("emergency")} className="flex w-full items-center gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left transition-all hover:border-red-300 hover:shadow-sm">
                   <IZap size={14} className="text-alert" />
                   <span className="flex-1 text-[11.5px] font-semibold text-red-800">Triage RED — {db.patients.find((p) => p.mrn === e.patientMrn)?.name} in Resus Bay</span>
                   <IArrowR size={13} className="text-red-400" />
                 </button>
               ))}
-              {lowStockNames.length > 0 && <button onClick={() => go("pharmacy", { tab: "inventory" })} className="flex w-full items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left transition-all hover:border-amber-300 hover:shadow-sm">
+              {(isAdmin || role === "pharmacist") && lowStockNames.length > 0 && <button onClick={() => go("pharmacy", { tab: "inventory" })} className="flex w-full items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left transition-all hover:border-amber-300 hover:shadow-sm">
                 <IPill size={14} className="text-amberish" />
                 <span className="flex-1 text-[11.5px] font-semibold text-amber-900">{lowStockNames.join(", ")}{lowStockNames.length < lowStock ? ` — ${lowStock - lowStockNames.length} more` : ""}</span>
                 <IArrowR size={13} className="text-amber-500" />
               </button>
               }
-              <button onClick={() => go("lab")} className="flex w-full items-center gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-left transition-all hover:border-sky-300 hover:shadow-sm">
+              {(isAdmin || role === "lab" || role === "doctor") && <button onClick={() => go("lab")} className="flex w-full items-center gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-left transition-all hover:border-sky-300 hover:shadow-sm">
                 <IFlask size={14} className="text-info" />
                 <span className="flex-1 text-[11.5px] font-semibold text-sky-900">{pendingLabs} lab orders in pipeline — {db.labOrders.filter((l) => l.status === "results").length} awaiting verification</span>
                 <IArrowR size={13} className="text-sky-400" />
-              </button>
-              <button onClick={() => go("billing")} className="flex w-full items-center gap-2.5 rounded-lg border border-line bg-line-soft/50 px-3 py-2 text-left transition-all hover:border-med-300 hover:shadow-sm">
+              </button>}
+              {(isAdmin || role === "billing") && <button onClick={() => go("billing")} className="flex w-full items-center gap-2.5 rounded-lg border border-line bg-line-soft/50 px-3 py-2 text-left transition-all hover:border-med-300 hover:shadow-sm">
                 <IAlert size={14} className="text-ink-soft" />
                 <span className="flex-1 text-[11.5px] font-semibold text-ink-soft">{ghs(outstanding)} in unpaid bills across {openBills.length} invoices</span>
                 <IArrowR size={13} className="text-ink-faint" />
-              </button>
+              </button>}
+              {role === "reception" && <button onClick={() => go("appointments")} className="flex w-full items-center gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-left transition-all hover:border-sky-300 hover:shadow-sm">
+                <ICalendar size={14} className="text-info" />
+                <span className="flex-1 text-[11.5px] font-semibold text-sky-900">{apptsToday.length} appointments scheduled today</span>
+                <IArrowR size={13} className="text-sky-400" />
+              </button>}
+              {!isAdmin && role !== "lab" && role !== "pharmacist" && role !== "billing" && role !== "doctor" && role !== "nurse" && role !== "reception" && <p className="py-3 text-center text-xs text-ink-faint">No department alerts</p>}
             </div>
           </Card>
 
           <Card className="p-4">
             <SectionHead title="Queues Right Now" sub="Serving across departments" right={<Btn variant="ghost" onClick={() => go("queue")}>Display board <IChevR size={13} /></Btn>} />
             <div className="space-y-2">
-              {QUEUE_DEPTS.map((q) => {
+              {QUEUE_DEPTS.filter((q) => queueKeys.includes(q.key)).map((q) => {
                 const st = db.queues[q.key];
                 return (
                   <button key={q.key} onClick={() => go("queue", { tab: q.key })} className="flex w-full items-center justify-between rounded-lg border border-line-soft bg-paper/60 px-3 py-2 text-left transition-colors hover:border-med-300 hover:bg-med-50/50">
@@ -333,7 +361,7 @@ export default function Dashboard() {
       <div className="grid gap-5 md:grid-cols-2">
         <Card className="p-4">
           <SectionHead title="Department Load — Today" sub="Appointments by department" />
-          <HBars items={deptLoad} />
+          <HBars items={isAdmin ? deptLoad : deptLoad.filter((item) => item.label === (db.staff.find((staff) => staff.id === user?.id)?.dept ?? ""))} />
         </Card>
         <Card className="p-4">
           <SectionHead title="Most Common Diagnoses" sub="Outpatient, last 30 days" />
