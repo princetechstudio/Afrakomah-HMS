@@ -8,9 +8,18 @@ const ICONS: Record<string, React.ReactNode> = {
   stetho: <IStetho size={15} />, flask: <IFlask size={15} />, pill: <IPill size={15} />, receipt: <IReceipt size={15} />,
 };
 
+const queueForRole = (role: string | undefined) => {
+  if (role === "lab") return "lab";
+  if (role === "pharmacist") return "pharm";
+  if (role === "billing") return "bill";
+  return "consult";
+};
+
 export default function QueueView() {
   const { db, mutate, toast, user } = useStore();
-  const [dept, setDept] = useState<string>("consult");
+  const isAdmin = user?.role === "admin";
+  const allowedQueues = isAdmin ? QUEUE_DEPTS : QUEUE_DEPTS.filter((q) => q.key === queueForRole(user?.role));
+  const [dept, setDept] = useState<string>(queueForRole(user?.role));
   const meta = QUEUE_DEPTS.find((q) => q.key === dept)!;
   const st = db.queues[dept];
 
@@ -62,7 +71,7 @@ export default function QueueView() {
           <p className="text-xs text-ink-faint">Token-based serving for consultation, laboratory, pharmacy and billing counters</p>
         </div>
         <div className="flex gap-1.5">
-          {QUEUE_DEPTS.map((q) => (
+          {allowedQueues.map((q) => (
             <button
               key={q.key}
               onClick={() => { setDept(q.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
@@ -125,9 +134,9 @@ export default function QueueView() {
       <div className="grid gap-5 lg:grid-cols-3">
         {/* all departments snapshot */}
         <Card className="p-4 lg:col-span-2">
-          <SectionHead title="All Counters" sub="Live status across the hospital" />
+          <SectionHead title={isAdmin ? "All Counters" : `${meta.label} Counter`} sub={isAdmin ? "Live status across the hospital" : "Live status for your department"} />
           <div className="grid gap-3 sm:grid-cols-2">
-            {QUEUE_DEPTS.map((q) => {
+            {allowedQueues.map((q) => {
               const s = db.queues[q.key];
               return (
                 <button
@@ -171,7 +180,7 @@ export default function QueueView() {
             {queueAudit.length === 0 && <p className="py-4 text-center text-xs text-ink-faint">No queue events yet today</p>}
           </div>
           <p className="mt-3 rounded-lg bg-pine-900 px-3 py-2 text-center font-mono text-[10px] text-mint">
-            Signed in: {user?.name} · tokens reset daily at 07:00
+            Signed in: {user?.name} · {isAdmin ? "All department queues visible" : `${meta.label} queue only`} · tokens reset daily at 07:00
           </p>
         </Card>
       </div>
