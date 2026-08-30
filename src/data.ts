@@ -191,6 +191,15 @@ export interface Invoice {
   status: "unpaid" | "partial" | "paid";
 }
 
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  method: string;
+  receivedBy: string;
+  paidAt: string;
+}
+
 export interface WardConfig {
   id: string;
   name: string;
@@ -322,6 +331,7 @@ export interface DB {
   medicines: Medicine[];
   inventory: InventoryItem[];
   invoices: Invoice[];
+  payments: Payment[];
   wards: WardConfig[];
   beds: Bed[];
   admissions: Admission[];
@@ -789,6 +799,7 @@ export function emptyDB(): DB {
     medicines: [],
     inventory: [],
     invoices: [],
+    payments: [],
     wards,
     beds,
     admissions: [],

@@ -15,7 +15,7 @@ export default function BillingView() {
 
   const canWork = user?.role === "billing";
   const today = todayISO();
-  const revenueToday = db.invoices.filter((i) => i.date === today).reduce((s, i) => s + i.paid, 0);
+  const revenueToday = db.payments.filter((p) => p.paidAt.slice(0, 10) === today).reduce((s, p) => s + p.amount, 0);
   const outstanding = db.invoices.reduce((s, i) => s + invBalance(i), 0);
   const unpaidCount = db.invoices.filter((i) => i.status === "unpaid").length;
 
@@ -123,6 +123,7 @@ function InvoiceModal({ inv, onClose, onReceipt }: { inv: Invoice; onClose: () =
         i.paid = Math.min(invTotal(i.items), i.paid + amt);
         i.method = method;
         i.status = invoiceStatus(i);
+        d.payments.push({ id: crypto.randomUUID(), invoiceId: i.id, amount: amt, method, receivedBy: user?.id ?? "Billing", paidAt: new Date().toISOString() });
       },
       {
         audit: `Recorded ${ghs(amt)} payment on ${inv.id} (${p?.name}) via ${method}`,
@@ -131,6 +132,7 @@ function InvoiceModal({ inv, onClose, onReceipt }: { inv: Invoice; onClose: () =
     );
     toast(`${ghs(amt)} recorded — receipt ${method === "MoMo" ? "sent by SMS" : "ready to print"}`, "ok");
     setAmount("");
+    onClose();
   };
 
   return (

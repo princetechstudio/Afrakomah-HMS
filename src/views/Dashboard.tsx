@@ -29,7 +29,7 @@ export default function Dashboard() {
   const openBills = db.invoices.filter((i) => i.status !== "paid");
   const outstanding = openBills.reduce((s, i) => s + Math.max(0, i.items.reduce((x, y) => x + y.amount, 0) - i.paid), 0);
   const todayPatients = new Set([...apptsToday.map((a) => a.patientMrn), ...activeEm.map((e) => e.patientMrn)]).size;
-  const revenueToday = db.invoices.filter((invoice) => invoice.date === today).reduce((sum, invoice) => sum + invoice.paid, 0);
+  const revenueToday = db.payments.filter((payment) => payment.paidAt.slice(0, 10) === today).reduce((sum, payment) => sum + payment.amount, 0);
   const trendDays = Array.from({ length: 14 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
@@ -37,7 +37,7 @@ export default function Dashboard() {
     return date.toISOString().slice(0, 10);
   });
   const registrationsTrend = trendDays.map((day) => db.patients.filter((patient) => patient.registeredAt.slice(0, 10) === day).length);
-  const revenueTrend = trendDays.map((day) => db.invoices.filter((invoice) => invoice.date.slice(0, 10) === day).reduce((sum, invoice) => sum + invoice.paid, 0));
+  const revenueTrend = trendDays.map((day) => db.payments.filter((payment) => payment.paidAt.slice(0, 10) === day).reduce((sum, payment) => sum + payment.amount, 0));
   const weeklyFlow = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);

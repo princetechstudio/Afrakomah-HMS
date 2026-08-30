@@ -1,5 +1,5 @@
 import { emptyDB, nowISO } from "./data";
-import type { DB, Role } from "./data";
+import type { DB, Payment, Role } from "./data";
 import { supabase } from "./supabase";
 
 type Row = Record<string, any>;
@@ -13,8 +13,8 @@ const asNumber = (value: unknown) => Number(value ?? 0);
 const by = (items: Row[], key: string) => new Map(items.map((item) => [String(item[key]), item]));
 
 export async function loadRelational(): Promise<DB> {
-  const [staff, patients, wards, beds, appointments, vitals, consultations, labTests, labOrders, labResults, medicines, prescriptions, prescriptionItems, admissions, maternity, nursing, invoices, invoiceItems, notifications, audit] = await Promise.all([
-    rows("staff"), rows("patients"), rows("wards"), rows("beds"), rows("appointments"), rows("vitals"), rows("consultations"), rows("lab_tests"), rows("lab_orders"), rows("lab_results"), rows("medicines"), rows("prescriptions"), rows("prescription_items"), rows("admissions"), rows("maternity_records"), rows("nursing_notes"), rows("invoices"), rows("invoice_items"), rows("notifications"), rows("audit_logs"),
+  const [staff, patients, wards, beds, appointments, vitals, consultations, labTests, labOrders, labResults, medicines, prescriptions, prescriptionItems, admissions, maternity, nursing, invoices, invoiceItems, payments, notifications, audit] = await Promise.all([
+    rows("staff"), rows("patients"), rows("wards"), rows("beds"), rows("appointments"), rows("vitals"), rows("consultations"), rows("lab_tests"), rows("lab_orders"), rows("lab_results"), rows("medicines"), rows("prescriptions"), rows("prescription_items"), rows("admissions"), rows("maternity_records"), rows("nursing_notes"), rows("invoices"), rows("invoice_items"), rows("payments"), rows("notifications"), rows("audit_logs"),
   ]);
   const patientById = by(patients, "id"); const staffById = by(staff, "id"); const wardById = by(wards, "id"); const bedById = by(beds, "id"); const testById = by(labTests, "id");
   const grouped = (items: Row[], key: string) => { const result = new Map<string, Row[]>(); items.forEach((item) => result.set(item[key], [...(result.get(item[key]) ?? []), item])); return result; };
@@ -33,6 +33,7 @@ export async function loadRelational(): Promise<DB> {
   db.admissions = admissions.map((a) => ({ id: a.admission_no, patientMrn: patientById.get(a.patient_id)?.mrn ?? "", bedId: bedById.get(a.bed_id)?.bed_code ?? "", doctorId: staffById.get(a.admitting_doctor_id)?.staff_id ?? "", date: a.admitted_at, diagnosis: a.diagnosis, status: a.status, dischargeDate: a.discharged_at, dailyCharge: asNumber(a.daily_charge), notes: notesByAdmission.get(a.id)?.map((n) => ({ at: n.created_at, by: staffById.get(n.written_by)?.staff_id ?? "", text: n.note })) ?? [] }));
   db.maternityRecords = maternity.map((m) => ({ id: m.record_no, motherMrn: patientById.get(m.mother_id)?.mrn ?? "", createdAt: m.created_at, gravida: m.gravida, parity: m.parity, lmp: m.lmp ?? "", edd: m.edd ?? "", investigations: m.anc_investigations ?? {}, deliveryDate: m.delivery_date ?? "", deliveryOutcome: m.delivery_outcome, deliveryMode: m.delivery_mode, maternalCondition: m.maternal_condition, maternalDischargeDate: m.maternal_discharge_date ?? "", breastfeedingStarted: m.breastfeeding_started, postpartumNotes: m.postpartum_notes, babySex: m.baby_sex, numberOfBabies: String(m.number_of_babies), birthWeight: String(m.birth_weight ?? ""), length: String(m.length_cm ?? ""), headCircumference: String(m.head_circumference_cm ?? ""), apgar1: String(m.apgar_one ?? ""), apgar5: String(m.apgar_five ?? ""), resuscitation: m.resuscitation, complications: m.complications, immunizations: m.immunizations ?? {}, babyConditionAtDischarge: m.baby_condition_at_discharge, nurseNotes: [] }));
   db.invoices = invoices.map((i) => ({ id: i.invoice_no, patientMrn: patientById.get(i.patient_id)?.mrn ?? "", date: i.created_at, items: invoiceItemsByInvoice.get(i.id)?.map((x) => ({ desc: x.description, amount: asNumber(x.amount), kind: x.item_type })) ?? [], paid: asNumber(i.paid), status: i.status }));
+  db.payments = payments.map((p) => ({ id: p.id, invoiceId: invoices.find((invoice) => invoice.id === p.invoice_id)?.invoice_no ?? "", amount: asNumber(p.amount), method: p.method, receivedBy: staffById.get(p.received_by)?.staff_id ?? "", paidAt: p.paid_at }));
   db.notifications = notifications.map((n) => ({ id: n.external_id, at: n.created_at, icon: n.icon, text: n.message, read: !!n.read_at, roles: n.recipient_roles ?? [] }));
   db.audit = audit.map((a) => ({ id: a.external_id, at: a.created_at, user: staffById.get(a.actor_id)?.full_name ?? "System", role: (staffById.get(a.actor_id)?.role ?? "admin") as Role, action: a.action }));
   return db;
@@ -100,6 +101,7 @@ export async function saveRelational(db: DB): Promise<void> {
       const { error } = await supabase.from("invoice_items").insert(items);
       if (error) throw error;
     }
+    await upsert("payments", db.payments.map((p) => ({ id: p.id, invoice_id: invoiceRows.get(p.invoiceId)?.id, amount: p.amount, method: p.method, received_by: staffIds.get(p.receivedBy)?.id, paid_at: p.paidAt })).filter((p) => p.invoice_id && p.received_by), "id");
   }
   await upsert("maternity_records", db.maternityRecords.map((m) => ({ record_no: m.id, mother_id: patientIds.get(m.motherMrn)?.id, gravida: m.gravida, parity: m.parity, lmp: m.lmp || null, edd: m.edd || null, anc_investigations: m.investigations, delivery_date: m.deliveryDate || null, delivery_outcome: m.deliveryOutcome, delivery_mode: m.deliveryMode, maternal_condition: m.maternalCondition, maternal_discharge_date: m.maternalDischargeDate || null, breastfeeding_started: m.breastfeedingStarted, postpartum_notes: m.postpartumNotes, baby_sex: m.babySex, number_of_babies: Number(m.numberOfBabies) || 1, birth_weight: Number(m.birthWeight) || null, length_cm: Number(m.length) || null, head_circumference_cm: Number(m.headCircumference) || null, apgar_one: Number(m.apgar1) || null, apgar_five: Number(m.apgar5) || null, resuscitation: m.resuscitation, complications: m.complications, immunizations: m.immunizations, baby_condition_at_discharge: m.babyConditionAtDischarge })).filter((m) => m.mother_id), "record_no");
   await upsert("notifications", db.notifications.map((n) => ({ external_id: n.id, recipient_roles: n.roles, icon: n.icon, message: n.text, read_at: n.read ? n.at : null, created_at: n.at })), "external_id");
