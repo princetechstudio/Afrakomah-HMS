@@ -65,7 +65,7 @@ export default function QueueView() {
           {QUEUE_DEPTS.map((q) => (
             <button
               key={q.key}
-              onClick={() => setDept(q.key)}
+              onClick={() => { setDept(q.key); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
                 dept === q.key ? "border-pine-800 bg-pine-900 text-mint shadow-sm" : "border-line bg-white text-ink-soft hover:border-med-300"
               }`}

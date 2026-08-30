@@ -4,19 +4,6 @@ import { Badge, Card, SectionHead, StatusPill, AreaChart, BarsChart, Donut, HBar
 import { IUsers, ICalendar, IBed, IZap, IReceipt, IFlask, IPill, IAlert, IChevR, IArrowR, IActivity } from "../icons";
 import type { Role } from "../data";
 
-const ADM_V_DIS = [
-  { label: "Mon", a: 2, b: 1 }, { label: "Tue", a: 1, b: 2 }, { label: "Wed", a: 3, b: 2 },
-  { label: "Thu", a: 2, b: 3 }, { label: "Fri", a: 4, b: 2 }, { label: "Sat", a: 3, b: 4 }, { label: "Sun", a: 5, b: 3 },
-];
-
-const DIAGNOSES = [
-  { label: "Malaria (uncomplicated)", value: 46, color: "#0e7a63" },
-  { label: "Upper resp. infection", value: 38, color: "#1d6fb8" },
-  { label: "Hypertension", value: 31, color: "#b45309" },
-  { label: "Type 2 diabetes", value: 22, color: "#0f766e" },
-  { label: "Urinary tract infection", value: 17, color: "#be123c" },
-];
-
 const DEPARTMENT_DASHBOARDS: Record<Role, { title: string; description: string; responsibilities: string[]; kpis: string[] }> = {
   admin: { title: "Hospital Command Center", description: "Complete read-only oversight of every department, patient, appointment, medicine, emergency, laboratory, ward and bed record.", responsibilities: ["Monitor hospital-wide activity", "Review AI oversight signals", "Audit operational performance"], kpis: ["all"] },
   doctor: { title: "Clinical Care Dashboard", description: "Coordinate consultations, review patient histories and act on laboratory results for assigned clinical care.", responsibilities: ["Review appointments and patient records", "Review lab results and clinical notes", "Manage consultations, prescriptions and lab requests"], kpis: ["Today's Patients", "Appointments Today", "Pending Lab Tests", "Emergency Cases"] },
@@ -43,6 +30,28 @@ export default function Dashboard() {
   const outstanding = openBills.reduce((s, i) => s + Math.max(0, i.items.reduce((x, y) => x + y.amount, 0) - i.paid), 0);
   const todayPatients = new Set([...apptsToday.map((a) => a.patientMrn), ...activeEm.map((e) => e.patientMrn)]).size;
   const revenueToday = db.trends.revenue[db.trends.revenue.length - 1];
+  const weeklyFlow = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    const day = date.toISOString().slice(0, 10);
+    return {
+      label: date.toLocaleDateString("en-GB", { weekday: "short" }),
+      a: db.admissions.filter((admission) => admission.date.slice(0, 10) === day).length,
+      b: db.admissions.filter((admission) => admission.dischargeDate?.slice(0, 10) === day).length,
+    };
+  });
+  const diagnoses = Object.entries(
+    db.consultations.reduce<Record<string, number>>((counts, consultation) => {
+      const diagnosis = consultation.diagnosis.trim();
+      if (diagnosis) counts[diagnosis] = (counts[diagnosis] ?? 0) + 1;
+      return counts;
+    }, {})
+  )
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+  const lowStockNames = db.medicines.filter((medicine) => medicine.stock <= medicine.reorderLevel).slice(0, 3).map((medicine) => medicine.name);
   const aiSignals = [
     activeEm.length > 0
       ? `${activeEm.length} emergency case${activeEm.length === 1 ? "" : "s"} need active clinical attention.`
@@ -73,7 +82,7 @@ export default function Dashboard() {
     { icon: <IBed size={16} />, label: "Currently Admitted", value: String(activeAdm.length), sub: `${db.beds.length - bedsFree} of ${db.beds.length} beds in use`, tone: "text-teal-700 bg-teal-50" },
     { icon: <IBed size={16} />, label: "Available Beds", value: String(bedsFree), sub: `${db.beds.filter((b) => b.status === "cleaning").length} cleaning · ${db.beds.filter((b) => b.status === "reserved").length} reserved`, tone: "text-emerald-700 bg-emerald-50" },
     { icon: <IZap size={16} />, label: "Emergency Cases", value: String(activeEm.length), sub: `${activeEm.filter((e) => e.triage === "critical").length} critical — red`, tone: "text-red-700 bg-red-50" },
-    { icon: <IReceipt size={16} />, label: "Today's Revenue", value: ghs(revenueToday), sub: "+14.8% vs 7-day average", tone: "text-med-700 bg-med-50", spark: db.trends.revenue, wide: true },
+    { icon: <IReceipt size={16} />, label: "Today's Revenue", value: ghs(revenueToday), sub: "Live collections total", tone: "text-med-700 bg-med-50", spark: db.trends.revenue, wide: true },
     { icon: <IReceipt size={16} />, label: "Pending Bills", value: String(openBills.length), sub: `${ghs(outstanding)} outstanding`, tone: "text-amber-800 bg-amber-50" },
     { icon: <IFlask size={16} />, label: "Pending Lab Tests", value: String(pendingLabs), sub: `${db.labOrders.filter((l) => l.status === "ordered").length} awaiting collection`, tone: "text-info bg-sky-50" },
     { icon: <IPill size={16} />, label: "Low Stock Medicines", value: String(lowStock), sub: `${db.medicines.filter((m) => m.expiry <= todayISO()).length} expired batch`, tone: "text-amber-800 bg-amber-50" },
@@ -96,7 +105,7 @@ export default function Dashboard() {
               <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-mint">Live · Hospital Command Center</span>
             </div>
             <h1 className="mt-1 font-display text-xl font-extrabold tracking-tight">
-              Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {user?.name.split(" ")[0]}
+              Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {user?.role === "admin" ? "System Admin" : user?.name.split(" ")[0]}
             </h1>
             <p className="mt-0.5 text-xs text-white/60">
               {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {department.title}
@@ -161,7 +170,7 @@ export default function Dashboard() {
           <div className="grid gap-5 md:grid-cols-2">
             <Card className="p-4">
               <SectionHead title="Admissions vs Discharges" sub="This week" />
-              <BarsChart data={ADM_V_DIS} aLabel="Admissions" bLabel="Discharges" />
+              <BarsChart data={weeklyFlow} aLabel="Admissions" bLabel="Discharges" />
             </Card>
             <Card className="p-4">
               <SectionHead title="Bed Occupancy" sub="All wards, real-time" />
@@ -245,7 +254,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between border-b border-line-soft px-4 py-3">
               <h3 className="font-display text-[13px] font-bold">Live Activity</h3>
               <span className="flex items-center gap-1.5 font-mono text-[9.5px] font-semibold uppercase tracking-widest text-med-600">
-                <span className="live-dot h-1.5 w-1.5 rounded-full bg-mint" /> streaming
+                <span className="live-dot h-1.5 w-1.5 rounded-full bg-mint" /> live
               </span>
             </div>
             <div className="relative h-[252px] overflow-hidden">
@@ -273,14 +282,15 @@ export default function Dashboard() {
                   <IArrowR size={13} className="text-red-400" />
                 </button>
               ))}
-              <button onClick={() => go("pharmacy", { tab: "inventory" })} className="flex w-full items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left transition-all hover:border-amber-300 hover:shadow-sm">
+              {lowStockNames.length > 0 && <button onClick={() => go("pharmacy", { tab: "inventory" })} className="flex w-full items-center gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left transition-all hover:border-amber-300 hover:shadow-sm">
                 <IPill size={14} className="text-amberish" />
-                <span className="flex-1 text-[11.5px] font-semibold text-amber-900">Ceftriaxone 1g out of stock — {lowStock} more items low</span>
+                <span className="flex-1 text-[11.5px] font-semibold text-amber-900">{lowStockNames.join(", ")}{lowStockNames.length < lowStock ? ` — ${lowStock - lowStockNames.length} more` : ""}</span>
                 <IArrowR size={13} className="text-amber-500" />
               </button>
+              }
               <button onClick={() => go("lab")} className="flex w-full items-center gap-2.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-left transition-all hover:border-sky-300 hover:shadow-sm">
                 <IFlask size={14} className="text-info" />
-                <span className="flex-1 text-[11.5px] font-semibold text-sky-900">{pendingLabs} lab orders in pipeline — 1 awaiting verification</span>
+                <span className="flex-1 text-[11.5px] font-semibold text-sky-900">{pendingLabs} lab orders in pipeline — {db.labOrders.filter((l) => l.status === "results").length} awaiting verification</span>
                 <IArrowR size={13} className="text-sky-400" />
               </button>
               <button onClick={() => go("billing")} className="flex w-full items-center gap-2.5 rounded-lg border border-line bg-line-soft/50 px-3 py-2 text-left transition-all hover:border-med-300 hover:shadow-sm">
@@ -297,13 +307,13 @@ export default function Dashboard() {
               {QUEUE_DEPTS.map((q) => {
                 const st = db.queues[q.key];
                 return (
-                  <div key={q.key} className="flex items-center justify-between rounded-lg border border-line-soft bg-paper/60 px-3 py-2">
+                  <button key={q.key} onClick={() => go("queue", { tab: q.key })} className="flex w-full items-center justify-between rounded-lg border border-line-soft bg-paper/60 px-3 py-2 text-left transition-colors hover:border-med-300 hover:bg-med-50/50">
                     <span className="text-[11.5px] font-semibold text-ink-soft">{q.label}</span>
                     <span className="flex items-center gap-2">
                       <span className="font-mono text-sm font-bold text-med-700">{st?.serving ?? "—"}</span>
                       <Badge tone="neutral">{st?.waiting.length ?? 0} waiting</Badge>
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -319,7 +329,7 @@ export default function Dashboard() {
         </Card>
         <Card className="p-4">
           <SectionHead title="Most Common Diagnoses" sub="Outpatient, last 30 days" />
-          <HBars items={DIAGNOSES} />
+          <HBars items={diagnoses} />
         </Card>
       </div>
 

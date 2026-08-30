@@ -45,6 +45,7 @@ interface StoreShape {
   login: (name: string, role: Role, password: string, existingId?: string) => void;
   logout: () => void;
   mutate: (fn: (d: DB) => void, opts?: MutateOpts) => void;
+  clearNotifications: () => void;
   createAccount: (a: NewAccount) => void;
   toast: (text: string, tone?: ToastMsg["tone"]) => void;
   toasts: ToastMsg[];
@@ -127,6 +128,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const remote = await loadRemote();
+        remote.queues = dbRef.current.queues;
+        dbRef.current = remote;
+        setDb(remote);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        toast(`Live refresh failed: ${message}`, "warn");
+      }
+    };
+    const interval = window.setInterval(() => void refresh(), 5000);
+    return () => window.clearInterval(interval);
+  }, [toast]);
+
   const mutate = useCallback((fn: (d: DB) => void, opts?: MutateOpts) => {
     const u = userRef.current;
     const prev = dbRef.current;
@@ -187,6 +204,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [mutate]);
 
+  const clearNotifications = useCallback(() => {
+    const role = userRef.current?.role;
+    const ids = dbRef.current.notifications
+      .filter((n) => role === "admin" || n.roles.includes(role ?? "reception"))
+      .map((n) => n.id);
+    if (ids.length === 0) {
+      toast("No notifications to clear", "info");
+      return;
+    }
+    void (async () => {
+      const { error } = await supabase.from("notifications").delete().in("external_id", ids);
+      if (error) {
+        toast(`Could not clear notifications: ${error.message}`, "danger");
+        return;
+      }
+      mutate((d) => { d.notifications = d.notifications.filter((n) => !ids.includes(n.id)); }, { audit: "Cleared notifications" });
+      toast("Notifications cleared", "ok");
+    })();
+  }, [mutate, toast]);
+
   /* ---------- staff account provisioning (Administration) ---------- */
   const createAccount = useCallback(
     (a: NewAccount) => {
@@ -213,8 +250,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ db, user, login, logout, mutate, createAccount, toast, toasts, dismissToast, nav, go }),
-    [db, user, login, logout, mutate, createAccount, toast, toasts, dismissToast, nav, go]
+    () => ({ db, user, login, logout, mutate, clearNotifications, createAccount, toast, toasts, dismissToast, nav, go }),
+    [db, user, login, logout, mutate, clearNotifications, createAccount, toast, toasts, dismissToast, nav, go]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

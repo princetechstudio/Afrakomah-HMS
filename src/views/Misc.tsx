@@ -4,7 +4,7 @@ import { emptyDB, timeAgo, fmtDate, fmtTime, todayISO, ROLE_META } from "../data
 import { supabase } from "../supabase";
 import type { Notif, Role } from "../data";
 import { Badge, Btn, Card, SectionHead, SearchBox, Tabs, Empty, downloadJSON, Input, Select, Field, Modal } from "../ui";
-import { IBell, ICheck, IShield, IDownload, IRefresh, IAlert, IFlask, IPill, IBed, IReceipt, ICard, ICalendar, IActivity, IGear, IPlus, IUser, IList } from "../icons";
+import { IBell, ICheck, IShield, IDownload, IRefresh, IAlert, IFlask, IPill, IBed, IReceipt, ICard, ICalendar, IActivity, IGear, IPlus, IUser, IList, IX } from "../icons";
 
 const NICON: Record<Notif["icon"], React.ReactNode> = {
   appt: <ICalendar size={14} />, lab: <IFlask size={14} />, rx: <IPill size={14} />, stock: <IPill size={14} />,
@@ -18,7 +18,7 @@ const NTONE: Record<Notif["icon"], string> = {
 };
 
 export function NotificationsView() {
-  const { db, user, mutate, toast } = useStore();
+  const { db, user, mutate, clearNotifications, toast } = useStore();
   const [tab, setTab] = useState("all");
 
   const mine = db.notifications.filter((n) => user?.role === "admin" || n.roles.includes(user?.role ?? "reception"));
@@ -47,6 +47,7 @@ export function NotificationsView() {
         <div className="flex items-center gap-2">
           <Tabs value={tab} onChange={setTab} items={[{ k: "all", label: "All", count: mine.length }, { k: "unread", label: "Unread", count: mine.filter((n) => !n.read).length }]} />
           <Btn variant="outline" onClick={markAll}><ICheck size={13} /> Mark all read</Btn>
+          <Btn variant="ghost" onClick={clearNotifications}><IX size={13} /> Clear</Btn>
         </div>
       </div>
 
