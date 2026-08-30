@@ -598,13 +598,15 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
         });
         if (selectedPrescriptionRows.length) {
           const rxId = nid("RX", d.rxOrders.map((r) => r.id));
+          const rxItems = selectedPrescriptionRows.map((r) => {
+            const med = d.medicines.find((m) => m.id === r.medId);
+            return { medId: med?.id ?? "CUSTOM", name: med?.name ?? r.customName.trim(), qty: parseInt(r.qty), dose: r.dose, freq: r.freq, duration: r.duration, unitPrice: med?.sellPrice ?? 0 };
+          });
           d.rxOrders.unshift({
             id: rxId, patientMrn: patient.mrn, doctorId: user?.id ?? "", date: nowISO(), status: "pending",
-            items: selectedPrescriptionRows.map((r) => {
-              const med = d.medicines.find((m) => m.id === r.medId);
-              return { medId: med?.id ?? "CUSTOM", name: med?.name ?? r.customName.trim(), qty: parseInt(r.qty), dose: r.dose, freq: r.freq, duration: r.duration, unitPrice: med?.sellPrice ?? 0 };
-            }),
+            items: rxItems,
           });
+          charge(d, patient.mrn, { desc: `Pharmacy prescription ${rxId}`, amount: rxItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), kind: "pharmacy" });
         }
       }, { audit: `Created ${selectedPrescriptionRows.length ? "prescription" : "lab order"} for ${patient.name} (${patient.mrn})`, notify: { text: `New ${selectedPrescriptionRows.length ? "prescription" : "lab order"} for ${patient.name} (${patient.mrn})`, icon: selectedPrescriptionRows.length ? "rx" : "lab", roles: ["admin", "nurse", "lab", "pharmacist"] } });
       if (selectedPrescriptionRows.length) toast("Prescription sent instantly to Pharmacy", "info");
@@ -636,13 +638,15 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
         let rxId: string | undefined;
         if (validRx.length) {
           rxId = nid("RX", d.rxOrders.map((r) => r.id));
+          const rxItems = validRx.map((r) => {
+            const med = d.medicines.find((m) => m.id === r.medId)!;
+            return { medId: med.id, name: med.name, qty: parseInt(r.qty), dose: r.dose, freq: r.freq, duration: r.duration, unitPrice: med.sellPrice };
+          });
           d.rxOrders.unshift({
             id: rxId, patientMrn: patient.mrn, doctorId: f.doctorId, date: nowISO(), status: "pending",
-            items: validRx.map((r) => {
-              const med = d.medicines.find((m) => m.id === r.medId)!;
-              return { medId: med.id, name: med.name, qty: parseInt(r.qty), dose: r.dose, freq: r.freq, duration: r.duration, unitPrice: med.sellPrice };
-            }),
+            items: rxItems,
           });
+          charge(d, patient.mrn, { desc: `Pharmacy prescription ${rxId}`, amount: rxItems.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), kind: "pharmacy" });
         }
 
         const doctor = d.staff.find((s) => s.id === f.doctorId);

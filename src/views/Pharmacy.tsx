@@ -296,8 +296,17 @@ function DispenseModal({ rx, onClose }: { rx: RxOrder; onClose: () => void }) {
     [rx, db.medicines]
   );
   const total = rx.items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const pharmacyInvoice = db.invoices.find((invoice) =>
+    invoice.patientMrn === rx.patientMrn &&
+    invoice.items.some((item) => item.kind === "pharmacy" && item.desc.includes(rx.id))
+  );
+  const paymentConfirmed = pharmacyInvoice?.status === "paid";
 
   const confirm = () => {
+    if (!paymentConfirmed) {
+      toast("Payment must be confirmed by the billing officer before dispensing.", "danger");
+      return;
+    }
     mutate(
       (d) => {
         const r = d.rxOrders.find((x) => x.id === rx.id)!;
@@ -307,7 +316,6 @@ function DispenseModal({ rx, onClose }: { rx: RxOrder; onClose: () => void }) {
         r.items.forEach((i) => {
           const med = d.medicines.find((m) => m.id === i.medId)!;
           med.stock = Math.max(0, med.stock - i.qty);
-          charge(d, rx.patientMrn, { desc: `Pharmacy: ${i.name} ×${i.qty}`, amount: i.qty * i.unitPrice, kind: "pharmacy" });
         });
       },
       {
@@ -323,7 +331,7 @@ function DispenseModal({ rx, onClose }: { rx: RxOrder; onClose: () => void }) {
     <Modal title={`Dispense ${rx.id}`} sub={`${p?.name} (${rx.patientMrn}) · prescribed by ${db.staff.find((s) => s.id === rx.doctorId)?.name}`} onClose={onClose} w="max-w-lg"
       footer={<>
         <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn onClick={confirm} disabled={shortages.length > 0}><ICheck size={14} /> Confirm dispensing</Btn>
+        <Btn onClick={confirm} disabled={shortages.length > 0 || !paymentConfirmed}><ICheck size={14} /> Confirm dispensing</Btn>
       </>}>
       <div className="space-y-2">
         {rx.items.map((i) => {
@@ -349,6 +357,11 @@ function DispenseModal({ rx, onClose }: { rx: RxOrder; onClose: () => void }) {
         {shortages.length > 0 && (
           <p className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-800">
             <IAlert size={13} /> Insufficient stock for {shortages.length} item(s) — restock before dispensing.
+          </p>
+        )}
+        {!paymentConfirmed && (
+          <p className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+            <IAlert size={13} /> Awaiting billing confirmation. The billing officer must fully pay this prescription before dispensing.
           </p>
         )}
       </div>

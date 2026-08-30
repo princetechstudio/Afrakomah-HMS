@@ -68,7 +68,17 @@ export async function saveRelational(db: DB): Promise<void> {
   }
   await upsert("prescriptions", db.rxOrders.map((p) => ({ prescription_no: p.id, patient_id: patientIds.get(p.patientMrn)?.id, doctor_id: staffIds.get(p.doctorId)?.id, status: p.status, prescribed_at: p.date, dispensed_by: p.dispensedBy ? staffIds.get(p.dispensedBy)?.id : null, dispensed_at: p.dispensedAt ?? null })).filter((p) => p.patient_id && p.doctor_id), "prescription_no");
   const prescriptionRows = by(await rows("prescriptions"), "prescription_no");
-  for (const prescription of db.rxOrders) { const id = prescriptionRows.get(prescription.id)?.id; if (!id) continue; await supabase.from("prescription_items").delete().eq("prescription_id", id); await upsert("prescription_items", prescription.items.map((item) => ({ prescription_id: id, medicine_id: medicineIds.get(item.medId)?.id ?? null, medicine_name: item.name, quantity: item.qty, dose: item.dose, frequency: item.freq, duration: item.duration, unit_price: item.unitPrice })), "id"); }
+  for (const prescription of db.rxOrders) {
+    const id = prescriptionRows.get(prescription.id)?.id;
+    if (!id) continue;
+    const { error: deleteError } = await supabase.from("prescription_items").delete().eq("prescription_id", id);
+    if (deleteError) throw deleteError;
+    const items = prescription.items.map((item) => ({ prescription_id: id, medicine_id: medicineIds.get(item.medId)?.id ?? null, medicine_name: item.name, quantity: item.qty, dose: item.dose, frequency: item.freq, duration: item.duration, unit_price: item.unitPrice }));
+    if (items.length) {
+      const { error } = await supabase.from("prescription_items").insert(items);
+      if (error) throw error;
+    }
+  }
   const bedRows = await rows("beds"); const bedIds = by(bedRows, "bed_code");
   await upsert("admissions", db.admissions.map((a) => ({ admission_no: a.id, patient_id: patientIds.get(a.patientMrn)?.id, bed_id: bedIds.get(a.bedId)?.id, admitting_doctor_id: staffIds.get(a.doctorId)?.id ?? null, diagnosis: a.diagnosis, status: a.status, admitted_at: a.date, discharged_at: a.dischargeDate ?? null, daily_charge: a.dailyCharge })).filter((a) => a.patient_id && a.bed_id), "admission_no");
   const admissionRows = by(await rows("admissions"), "admission_no");
@@ -80,7 +90,17 @@ export async function saveRelational(db: DB): Promise<void> {
   }
   await upsert("invoices", db.invoices.map((i) => ({ invoice_no: i.id, patient_id: patientIds.get(i.patientMrn)?.id, total: i.items.reduce((sum, item) => sum + item.amount, 0), paid: i.paid, status: i.status, created_at: i.date })).filter((i) => i.patient_id), "invoice_no");
   const invoiceRows = by(await rows("invoices"), "invoice_no");
-  for (const invoice of db.invoices) { const id = invoiceRows.get(invoice.id)?.id; if (!id) continue; await supabase.from("invoice_items").delete().eq("invoice_id", id); await upsert("invoice_items", invoice.items.map((item) => ({ invoice_id: id, description: item.desc, amount: item.amount, item_type: item.kind })), "id"); }
+  for (const invoice of db.invoices) {
+    const id = invoiceRows.get(invoice.id)?.id;
+    if (!id) continue;
+    const { error: deleteError } = await supabase.from("invoice_items").delete().eq("invoice_id", id);
+    if (deleteError) throw deleteError;
+    const items = invoice.items.map((item) => ({ invoice_id: id, description: item.desc, amount: item.amount, item_type: item.kind }));
+    if (items.length) {
+      const { error } = await supabase.from("invoice_items").insert(items);
+      if (error) throw error;
+    }
+  }
   await upsert("maternity_records", db.maternityRecords.map((m) => ({ record_no: m.id, mother_id: patientIds.get(m.motherMrn)?.id, gravida: m.gravida, parity: m.parity, lmp: m.lmp || null, edd: m.edd || null, anc_investigations: m.investigations, delivery_date: m.deliveryDate || null, delivery_outcome: m.deliveryOutcome, delivery_mode: m.deliveryMode, maternal_condition: m.maternalCondition, maternal_discharge_date: m.maternalDischargeDate || null, breastfeeding_started: m.breastfeedingStarted, postpartum_notes: m.postpartumNotes, baby_sex: m.babySex, number_of_babies: Number(m.numberOfBabies) || 1, birth_weight: Number(m.birthWeight) || null, length_cm: Number(m.length) || null, head_circumference_cm: Number(m.headCircumference) || null, apgar_one: Number(m.apgar1) || null, apgar_five: Number(m.apgar5) || null, resuscitation: m.resuscitation, complications: m.complications, immunizations: m.immunizations, baby_condition_at_discharge: m.babyConditionAtDischarge })).filter((m) => m.mother_id), "record_no");
   await upsert("notifications", db.notifications.map((n) => ({ external_id: n.id, recipient_roles: n.roles, icon: n.icon, message: n.text, read_at: n.read ? n.at : null, created_at: n.at })), "external_id");
   await upsert("audit_logs", db.audit.map((a) => ({ external_id: a.id, actor_id: (staffIds.get(a.user) ?? staffNames.get(a.user))?.id ?? null, action: a.action, created_at: a.at })), "external_id");
