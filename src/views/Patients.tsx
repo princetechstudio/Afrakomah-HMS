@@ -615,6 +615,7 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
       return;
     }
 
+    let queueToken: string | undefined;
     mutate(
       (d) => {
         const conId = nid("CON", d.consultations.map((c) => c.id));
@@ -667,10 +668,19 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
           (a) => a.patientMrn === patient.mrn && a.doctorId === f.doctorId && a.date === today &&
             (a.status === "checked-in" || a.status === "in-consultation")
         );
-        if (appt) appt.status = "completed";
+        if (appt) {
+          appt.status = "completed";
+          queueToken = appt.queueNo;
+        }
+        if (!queueToken) {
+          const q = d.queues.consult;
+          queueToken = `A${String(q.seq + 1).padStart(2, "0")}`;
+          q.seq += 1;
+          q.waiting.push(queueToken);
+        }
       },
       {
-        audit: `${user?.role === "doctor" ? "Completed consultation" : "Recorded nursing assessment"} for ${patient.name} (${patient.mrn})`,
+        audit: `${user?.role === "doctor" ? "Completed consultation" : "Recorded nursing assessment"} for ${patient.name} (${patient.mrn}) — walk-in token issued`,
         notify: selLabs.length
           ? { text: `${selLabs.length} new lab order(s) for ${patient.name} (${patient.mrn})`, icon: "lab", roles: ["lab", "admin"] }
           : { text: `${user?.role === "doctor" ? "Consultation completed" : "Nursing assessment recorded"} for ${patient.name}`, icon: "alert", roles: ["reception", "billing", "admin"] },
@@ -678,7 +688,7 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
     );
     if (validRx.length) toast("Prescription sent instantly to Pharmacy", "info");
     if (selLabs.length) toast(`${selLabs.length} lab order(s) routed to Laboratory`, "info");
-    toast(`Consultation saved — charges added to ${patient.name}'s bill automatically`, "ok");
+    toast(`Consultation saved — token ${queueToken} issued for the next hospital service`, "ok");
     onClose();
   };
 
