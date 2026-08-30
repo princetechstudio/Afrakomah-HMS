@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore, nid, charge, invTotal } from "../store";
 import {
   todayISO, nowISO, fmtDate, fmtTime, timeAgo, ghs, ageFrom,
-  LAB_CATALOG, LAB_GROUPS, COMMON_DIAGNOSES, SYMPTOMS, FREQS,
+  LAB_CATALOG, LAB_GROUPS, SYMPTOMS, FREQS,
 } from "../data";
 import type { LabOrder, Patient, Vitals } from "../data";
 import { ReportModal } from "./Lab";
@@ -582,8 +582,8 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
       toast("Add at least one medicine or laboratory test", "danger");
       return;
     }
-    if (!ordersOnly && (!f.complaint.trim() || !f.diagnosis)) {
-      toast("Chief complaint and diagnosis are required", "danger");
+    if (!ordersOnly && !f.complaint.trim()) {
+      toast("Chief complaint is required", "danger");
       return;
     }
 
@@ -656,7 +656,9 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
         d.consultations.unshift({
           id: conId, patientMrn: patient.mrn, doctorId: f.doctorId, date: nowISO(),
           complaint: f.complaint.trim(), symptoms, vitals, examination: f.examination.trim(),
-          diagnosis: f.diagnosis, treatment: f.treatment.trim(), notes: f.notes.trim(),
+          diagnosis: user?.role === "doctor" ? f.diagnosis : "Nursing assessment",
+          treatment: user?.role === "doctor" ? f.treatment.trim() : "",
+          notes: f.notes.trim(),
           followUp: f.followUp || undefined, rxId, labIds,
         });
 
@@ -668,10 +670,10 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
         if (appt) appt.status = "completed";
       },
       {
-        audit: `Completed consultation for ${patient.name} (${patient.mrn}) — Dx: ${f.diagnosis}`,
+        audit: `${user?.role === "doctor" ? "Completed consultation" : "Recorded nursing assessment"} for ${patient.name} (${patient.mrn})`,
         notify: selLabs.length
           ? { text: `${selLabs.length} new lab order(s) for ${patient.name} (${patient.mrn})`, icon: "lab", roles: ["lab", "admin"] }
-          : { text: `Consultation completed for ${patient.name} by ${db.staff.find((s) => s.id === f.doctorId)?.name}`, icon: "alert", roles: ["reception", "billing", "admin"] },
+          : { text: `${user?.role === "doctor" ? "Consultation completed" : "Nursing assessment recorded"} for ${patient.name}`, icon: "alert", roles: ["reception", "billing", "admin"] },
       }
     );
     if (validRx.length) toast("Prescription sent instantly to Pharmacy", "info");
@@ -729,19 +731,9 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
 
         <Field label="Physical examination"><Textarea value={f.examination} onChange={(e) => set("examination", e.target.value)} placeholder="Findings on examination…" /></Field>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Diagnosis *">
-            <Select value={f.diagnosis} onChange={(e) => set("diagnosis", e.target.value)}>
-              <option value="">Select diagnosis…</option>
-              {COMMON_DIAGNOSES.map((d) => <option key={d}>{d}</option>)}
-            </Select>
-          </Field>
-          <Field label="Treatment plan"><Input value={f.treatment} onChange={(e) => set("treatment", e.target.value)} placeholder="e.g. Full course AL, rest, fluids" /></Field>
-        </div>
-
         </>}
 
-        {(!ordersOnly || orderType === "lab") && <>
+        {ordersOnly && orderType === "lab" && <>
         {/* lab orders */}
         <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -768,7 +760,7 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
 
         </>}
 
-        {(!ordersOnly || orderType === "rx") && <>
+        {ordersOnly && orderType === "rx" && <>
         {/* prescription */}
         <div className="rounded-xl border border-med-200 bg-med-50/50 p-3">
           <div className="mb-2 flex items-center justify-between">
@@ -798,7 +790,7 @@ function ConsultModal({ patient, onClose, ordersOnly = false, orderType }: { pat
 
         </>}
 
-        {!ordersOnly && <Field label="Doctor's notes"><Textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Advice, warnings, safety-netting…" /></Field>}
+        {!ordersOnly && <Field label="Nursing notes"><Textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="Care observations, advice, warnings, safety-netting…" /></Field>}
       </div>
     </Modal>
   );
