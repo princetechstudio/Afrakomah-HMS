@@ -292,6 +292,14 @@ function PatientDetail({ mrn }: { mrn: string }) {
     ...db.consultations.filter((c) => c.patientMrn === mrn).map((c) => c.vitals),
     ...db.vitalsLog.filter((v) => v.patientMrn === mrn).map((v) => v.v),
   ].sort((a, b) => (a.takenAt < b.takenAt ? 1 : -1));
+  const patientConsultations = db.consultations
+    .filter((c) => c.patientMrn === mrn)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const patientAdmissions = db.admissions
+    .filter((a) => a.patientMrn === mrn)
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const patientInvoices = db.invoices.filter((i) => i.patientMrn === mrn);
+  const patientBalance = patientInvoices.reduce((sum, invoice) => sum + Math.max(0, invTotal(invoice.items) - invoice.paid), 0);
 
   const insExpired = p.insurance && p.insurance.expiry < todayISO();
 
@@ -384,6 +392,31 @@ function PatientDetail({ mrn }: { mrn: string }) {
 
       {tab === "overview" && (
         <div className="grid gap-4 md:grid-cols-2">
+          <Card className="p-4 md:col-span-2">
+            <SectionHead title="Care Snapshot" sub="Current clinical, admission and billing status" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg bg-paper/70 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-ink-faint">Latest consultation</p>
+                <p className="mt-1 text-xs font-semibold text-ink">{patientConsultations[0] ? fmtDate(patientConsultations[0].date) : "None recorded"}</p>
+                <p className="mt-0.5 truncate text-[11px] text-ink-soft">{patientConsultations[0]?.diagnosis || "No consultation yet"}</p>
+              </div>
+              <div className="rounded-lg bg-paper/70 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-ink-faint">Latest vitals</p>
+                <p className="mt-1 text-xs font-semibold text-ink">{allVitals[0] ? fmtDate(allVitals[0].takenAt) : "None recorded"}</p>
+                <p className="mt-0.5 text-[11px] text-ink-soft">{allVitals[0] ? `BP ${allVitals[0].bpSys}/${allVitals[0].bpDia} · Pulse ${allVitals[0].pulse}` : "No observations yet"}</p>
+              </div>
+              <div className="rounded-lg bg-paper/70 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-ink-faint">Admission status</p>
+                <p className="mt-1 text-xs font-semibold capitalize text-ink">{p.status}</p>
+                <p className="mt-0.5 text-[11px] text-ink-soft">{patientAdmissions[0]?.bedId ? `Bed ${patientAdmissions[0].bedId}` : "Not currently admitted"}</p>
+              </div>
+              <div className="rounded-lg bg-paper/70 p-3">
+                <p className="text-[10px] uppercase tracking-wide text-ink-faint">Outstanding balance</p>
+                <p className={`mt-1 text-xs font-semibold ${patientBalance > 0 ? "text-alert" : "text-emerald-700"}`}>{ghs(patientBalance)}</p>
+                <p className="mt-0.5 text-[11px] text-ink-soft">{patientInvoices.length} invoice{patientInvoices.length === 1 ? "" : "s"} on record</p>
+              </div>
+            </div>
+          </Card>
           <Card className="p-4">
             <SectionHead title="Medical History" />
             {p.history.length ? (
@@ -421,7 +454,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
 
       {tab === "labs" && (
         <Card className="p-4">
-          <SectionHead title="Laboratory Results" sub="Results entered by the laboratory are visible here before final verification." right={<Btn variant="ghost" onClick={() => go("lab")}>Open Lab module <IChevR size={13} /></Btn>} />
+          <SectionHead title="Laboratory Results" sub="Results entered and verified by the laboratory are available here for doctor review." right={<Btn variant="ghost" onClick={() => go("lab")}>Open Lab module <IChevR size={13} /></Btn>} />
           <div className="space-y-2">
             {db.labOrders.filter((l) => l.patientMrn === mrn).map((l) => (
               <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft bg-paper/50 px-3 py-2.5">
