@@ -161,7 +161,7 @@ export default function LabView() {
 /* ---------- result entry ---------- */
 
 function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void }) {
-  const { db, mutate, toast } = useStore();
+  const { db, user, mutate, toast } = useStore();
   const cat = LAB_CATALOG[order.test] ?? {
     name: order.test,
     price: order.price,
@@ -181,7 +181,9 @@ function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void
     mutate(
       (d) => {
         const l = d.labOrders.find((x) => x.id === order.id)!;
-        l.status = "results";
+        l.status = "verified";
+        l.verifiedBy = user?.name ?? "Lab";
+        l.verifiedAt = nowISO();
         l.results = cat.markers.map((m) => {
           const raw = (vals[m.marker] ?? "").trim();
           if (m.qual) {
@@ -193,9 +195,9 @@ function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void
           return { marker: m.marker, value: Number.isNaN(v) ? raw || "—" : String(v), unit: m.unit, ref: m.ref, flag };
         });
       },
-      { audit: `Entered ${cat.name} results for ${p?.name} (${order.id})`, notify: { text: `Lab results available: ${cat.name} for ${p?.name} — requesting doctor review`, icon: "lab", roles: ["doctor", "admin"] } }
+      { audit: `Entered and verified ${cat.name} results for ${p?.name} (${order.id})`, notify: { text: `Verified lab results sent to the requesting doctor: ${cat.name} for ${p?.name}`, icon: "lab", roles: ["doctor", "admin"] } }
     );
-    toast("Results entered — send for verification when reviewed", "ok");
+    toast("Results entered and verified — requesting doctor notified", "ok");
     onClose();
   };
 
