@@ -66,6 +66,17 @@ async function loadRemote() {
   return loadRelational();
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const value = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown };
+    return [value.message, value.details, value.hint, value.code ? `code ${value.code}` : undefined]
+      .filter((part): part is string => typeof part === "string" && part.length > 0)
+      .join(" — ") || "Unknown Supabase error";
+  }
+  return String(error);
+}
+
 /** v4 → v5: adds live ward configs (beds were previously fixed at seed time). */
 function migrateV4(d: DB): DB {
   return {
@@ -97,7 +108,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.removeItem("medicore-db-v5");
     localStorage.removeItem("medicore-db-v4");
-    void loadRemote().then((remote) => { dbRef.current = remote; setDb(remote); }).catch((error: Error) => toast(`Supabase connection failed: ${error.message}`, "danger"));
+    void loadRemote().then((remote) => { dbRef.current = remote; setDb(remote); }).catch((error) => toast(`Supabase connection failed: ${errorMessage(error)}`, "danger"));
   }, []);
 
   const dbRef = useRef(db);
@@ -129,6 +140,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   useEffect(() => {
+    if (!user) return;
     const refresh = async () => {
       try {
         const remote = await loadRemote();
@@ -136,13 +148,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         dbRef.current = remote;
         setDb(remote);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        toast(`Live refresh failed: ${message}`, "warn");
+        toast(`Live refresh failed: ${errorMessage(error)}`, "warn");
       }
     };
     const interval = window.setInterval(() => void refresh(), 5000);
     return () => window.clearInterval(interval);
-  }, [toast]);
+  }, [toast, user]);
 
   const mutate = useCallback((fn: (d: DB) => void, opts?: MutateOpts) => {
     const u = userRef.current;
@@ -165,7 +176,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
       .then(() => saveRemote(next));
-    void saveQueueRef.current.catch((error: Error) => toast(`Could not save to Supabase: ${error.message}`, "danger"));
+    void saveQueueRef.current.catch((error) => toast(`Could not save to Supabase: ${errorMessage(error)}`, "danger"));
   }, []);
 
   /* ---------- staff-ID sign-in with server-side password verification ---------- */
@@ -185,8 +196,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setNav({ view: HOME[role] });
           toast(`Welcome, ${staff.name} — ${ROLE_META[role].label} workspace`, "ok");
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          toast(`Sign-in failed: ${message}`, "danger");
+          toast(`Sign-in failed: ${errorMessage(error)}`, "danger");
         }
       })();
     },
