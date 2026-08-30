@@ -15,7 +15,7 @@ export default function BillingView() {
 
   const canWork = user?.role === "billing";
   const today = todayISO();
-  const revenueToday = db.invoices.filter((i) => i.date === today).reduce((s, i) => s + i.paid, 0) + 6340;
+  const revenueToday = db.invoices.filter((i) => i.date === today).reduce((s, i) => s + i.paid, 0);
   const outstanding = db.invoices.reduce((s, i) => s + invBalance(i), 0);
   const unpaidCount = db.invoices.filter((i) => i.status === "unpaid").length;
 

@@ -29,7 +29,15 @@ export default function Dashboard() {
   const openBills = db.invoices.filter((i) => i.status !== "paid");
   const outstanding = openBills.reduce((s, i) => s + Math.max(0, i.items.reduce((x, y) => x + y.amount, 0) - i.paid), 0);
   const todayPatients = new Set([...apptsToday.map((a) => a.patientMrn), ...activeEm.map((e) => e.patientMrn)]).size;
-  const revenueToday = db.trends.revenue[db.trends.revenue.length - 1];
+  const revenueToday = db.invoices.filter((invoice) => invoice.date === today).reduce((sum, invoice) => sum + invoice.paid, 0);
+  const trendDays = Array.from({ length: 14 }, (_, index) => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() - (13 - index));
+    return date.toISOString().slice(0, 10);
+  });
+  const registrationsTrend = trendDays.map((day) => db.patients.filter((patient) => patient.registeredAt.slice(0, 10) === day).length);
+  const revenueTrend = trendDays.map((day) => db.invoices.filter((invoice) => invoice.date.slice(0, 10) === day).reduce((sum, invoice) => sum + invoice.paid, 0));
   const weeklyFlow = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setHours(12, 0, 0, 0);
@@ -77,15 +85,15 @@ export default function Dashboard() {
   });
 
   const kpis = [
-    { icon: <IUsers size={16} />, label: "Today's Patients", value: String(todayPatients), sub: `${activeEm.length} via emergency`, tone: "text-med-700 bg-med-50", spark: db.trends.registrations },
+    { icon: <IUsers size={16} />, label: "Today's Patients", value: String(todayPatients), sub: `${activeEm.length} via emergency`, tone: "text-med-700 bg-med-50", spark: registrationsTrend },
     { icon: <ICalendar size={16} />, label: "Appointments Today", value: String(apptsToday.length), sub: `${apptsToday.filter((a) => a.status === "completed").length} completed · ${apptsToday.filter((a) => a.status === "checked-in").length} in queue`, tone: "text-sky-700 bg-sky-50" },
     { icon: <IBed size={16} />, label: "Currently Admitted", value: String(activeAdm.length), sub: `${db.beds.length - bedsFree} of ${db.beds.length} beds in use`, tone: "text-teal-700 bg-teal-50" },
     { icon: <IBed size={16} />, label: "Available Beds", value: String(bedsFree), sub: `${db.beds.filter((b) => b.status === "cleaning").length} cleaning · ${db.beds.filter((b) => b.status === "reserved").length} reserved`, tone: "text-emerald-700 bg-emerald-50" },
     { icon: <IZap size={16} />, label: "Emergency Cases", value: String(activeEm.length), sub: `${activeEm.filter((e) => e.triage === "critical").length} critical — red`, tone: "text-red-700 bg-red-50" },
-    { icon: <IReceipt size={16} />, label: "Today's Revenue", value: ghs(revenueToday), sub: "Live collections total", tone: "text-med-700 bg-med-50", spark: db.trends.revenue, wide: true },
+    { icon: <IReceipt size={16} />, label: "Today's Revenue", value: ghs(revenueToday), sub: "Live collections total", tone: "text-med-700 bg-med-50", spark: revenueTrend, wide: true },
     { icon: <IReceipt size={16} />, label: "Pending Bills", value: String(openBills.length), sub: `${ghs(outstanding)} outstanding`, tone: "text-amber-800 bg-amber-50" },
     { icon: <IFlask size={16} />, label: "Pending Lab Tests", value: String(pendingLabs), sub: `${db.labOrders.filter((l) => l.status === "ordered").length} awaiting collection`, tone: "text-info bg-sky-50" },
-    { icon: <IPill size={16} />, label: "Low Stock Medicines", value: String(lowStock), sub: `${db.medicines.filter((m) => m.expiry <= todayISO()).length} expired batch`, tone: "text-amber-800 bg-amber-50" },
+    { icon: <IPill size={16} />, label: "Low Stock Medicines", value: String(lowStock), sub: `${db.medicines.filter((m) => m.expiry && m.expiry <= today).length} expired batch`, tone: "text-amber-800 bg-amber-50" },
     { icon: <IPill size={16} />, label: "Out of Stock", value: String(outStock), sub: "Reorder raised automatically", tone: "text-red-700 bg-red-50" },
   ];
   const visibleKpis = department.kpis.includes("all") ? kpis : kpis.filter((k) => department.kpis.includes(k.label));
@@ -159,11 +167,11 @@ export default function Dashboard() {
           <div className="grid gap-5 md:grid-cols-2">
             <Card className="p-4">
               <SectionHead title="Patient Registrations" sub="Last 14 days" right={<Badge tone="med">+18% this month</Badge>} />
-              <AreaChart values={db.trends.registrations} labels={db.trends.labels} />
+              <AreaChart values={registrationsTrend} labels={trendDays.map((day) => day.slice(5))} />
             </Card>
             <Card className="p-4">
-              <SectionHead title="Revenue Trend" sub="Daily collections, GH₵" right={<Badge tone="ok">GH₵ {(db.trends.revenue.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}k total</Badge>} />
-              <AreaChart values={db.trends.revenue} labels={db.trends.labels} color="#1d6fb8" money />
+              <SectionHead title="Revenue Trend" sub="Daily collections, GH₵" right={<Badge tone="ok">GH₵ {(revenueTrend.reduce((a, b) => a + b, 0) / 1000).toFixed(1)}k total</Badge>} />
+              <AreaChart values={revenueTrend} labels={trendDays.map((day) => day.slice(5))} color="#1d6fb8" money />
             </Card>
           </div>
 
