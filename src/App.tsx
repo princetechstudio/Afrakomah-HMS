@@ -55,12 +55,6 @@ const VIEW_LABEL: Record<ViewId, string> = {
   notifications: "Notifications", settings: "Settings",
 };
 
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-}
-
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
@@ -325,7 +319,6 @@ function TopBar({ view, onMenu }: { view: ViewId; onMenu: () => void }) {
   const { db, user, go, mutate } = useStore();
   const [q, setQ] = useState("");
   const [bell, setBell] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const results = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (s.length < 2) return [];
@@ -333,22 +326,6 @@ function TopBar({ view, onMenu }: { view: ViewId; onMenu: () => void }) {
   }, [q, db.patients]);
 
   const mine = db.notifications.filter((n) => !n.read && (user?.role === "admin" || n.roles.includes(user?.role ?? "reception"))).slice(0, 6);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-  }, []);
-
-  const installApp = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === "accepted") setInstallPrompt(null);
-  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur">
@@ -385,12 +362,6 @@ function TopBar({ view, onMenu }: { view: ViewId; onMenu: () => void }) {
         </div>
 
         <LiveClock />
-
-        {installPrompt && (
-          <button onClick={() => void installApp()} className="hidden items-center rounded-lg bg-med-700 px-3 py-2 text-[11px] font-bold text-white transition-colors hover:bg-med-800 sm:flex">
-            Download web app
-          </button>
-        )}
 
         {/* bell */}
         <div className="relative">

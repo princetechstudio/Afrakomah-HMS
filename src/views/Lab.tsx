@@ -118,7 +118,7 @@ export default function LabView() {
                       {canWork && o.status === "collected" && <Btn variant="soft" size="xs" onClick={() => advance(o, "processing")}><IFlask size={12} /> Process</Btn>}
                       {canWork && o.status === "processing" && <Btn size="xs" onClick={() => setEnterFor(o)}>Enter results</Btn>}
                       {canWork && o.status === "results" && <Btn size="xs" onClick={() => verify(o)}><ICheck size={12} /> Verify</Btn>}
-                      {hasResults && <Btn variant={expandedResults === o.id ? "soft" : "outline"} size="xs" onClick={() => setExpandedResults((current) => current === o.id ? null : o.id)}><IEye size={12} /> {expandedResults === o.id ? "Hide results" : "View results"}</Btn>}
+                      {(hasResults || o.status === "results" || o.status === "verified") ? <Btn variant={expandedResults === o.id ? "soft" : "outline"} size="xs" onClick={() => setExpandedResults((current) => current === o.id ? null : o.id)}><IEye size={12} /> {expandedResults === o.id ? "Hide results" : "View results"}</Btn> : <span className="px-2 text-[10px] text-ink-faint">Awaiting results</span>}
                     </div>
                   </td>
                 </tr>
