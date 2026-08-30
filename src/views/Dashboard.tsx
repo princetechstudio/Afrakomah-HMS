@@ -142,8 +142,8 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Btn variant="dark" onClick={() => go("emergency")}><IZap size={14} /> Emergency board</Btn>
-            <Btn variant="dark" onClick={() => go("wards")}><IBed size={14} /> Bed map</Btn>
+            {(isAdmin || role === "doctor" || role === "nurse") && <Btn variant="dark" onClick={() => go("emergency")}><IZap size={14} /> Emergency board</Btn>}
+            {(isAdmin || role === "doctor" || role === "nurse") && <Btn variant="dark" onClick={() => go("wards")}><IBed size={14} /> Bed map</Btn>}
           </div>
         </div>
       </div>

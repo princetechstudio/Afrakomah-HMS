@@ -454,7 +454,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
 
       {tab === "labs" && (
         <Card className="p-4">
-          <SectionHead title="Laboratory Results" sub="Results entered and verified by the laboratory are available here for doctor review." right={<Btn variant="ghost" onClick={() => go("lab")}>Open Lab module <IChevR size={13} /></Btn>} />
+          <SectionHead title="Laboratory Results" sub="Results entered and verified by the laboratory are available here for doctor review." right={(role === "admin" || role === "doctor" || role === "lab") ? <Btn variant="ghost" onClick={() => go("lab")}>Open Lab module <IChevR size={13} /></Btn> : undefined} />
           <div className="space-y-2">
             {db.labOrders.filter((l) => l.patientMrn === mrn).map((l) => (
               <div key={l.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-soft bg-paper/50 px-3 py-2.5">
@@ -486,7 +486,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
 
       {tab === "rx" && (
         <Card className="p-4">
-          <SectionHead title="Prescriptions" right={<Btn variant="ghost" onClick={() => go("pharmacy")}>Open Pharmacy <IChevR size={13} /></Btn>} />
+          <SectionHead title="Prescriptions" right={(role === "admin" || role === "pharmacist") ? <Btn variant="ghost" onClick={() => go("pharmacy")}>Open Pharmacy <IChevR size={13} /></Btn> : undefined} />
           <div className="space-y-3">
             {db.rxOrders.filter((r) => r.patientMrn === mrn).map((r) => (
               <div key={r.id} className="rounded-lg border border-line-soft p-3">
@@ -510,7 +510,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
 
       {tab === "bills" && (
         <Card className="p-4">
-          <SectionHead title="Invoices & Payments" right={<Btn variant="ghost" onClick={() => go("billing")}>Open Billing <IChevR size={13} /></Btn>} />
+          <SectionHead title="Invoices & Payments" right={(role === "admin" || role === "billing") ? <Btn variant="ghost" onClick={() => go("billing")}>Open Billing <IChevR size={13} /></Btn> : undefined} />
           <div className="space-y-2">
             {db.invoices.filter((i) => i.patientMrn === mrn).map((inv) => (
               <div key={inv.id} className="rounded-lg border border-line-soft p-3">
