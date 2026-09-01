@@ -319,6 +319,21 @@ export interface PatientComment {
   department: string;
 }
 
+export interface TreatmentEntry {
+  id: string;
+  patientMrn: string;
+  medicine: string;
+  dose: string;
+  route: string;
+  frequency: string;
+  times: string[];
+  date: string;
+  instructions: string;
+  administrations: Record<string, string>;
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface Notif {
   id: string;
   at: string;
@@ -350,6 +365,7 @@ export interface DB {
   consultations: Consultation[];
   patientDocuments: PatientDocument[];
   patientComments: PatientComment[];
+  treatmentEntries: TreatmentEntry[];
   labOrders: LabOrder[];
   rxOrders: RxOrder[];
   medicines: Medicine[];
@@ -820,6 +836,7 @@ export function emptyDB(): DB {
     consultations: [],
     patientDocuments: [],
     patientComments: [],
+    treatmentEntries: [],
     labOrders: [],
     rxOrders: [],
     medicines: [],

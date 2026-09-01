@@ -4,7 +4,8 @@ import {
   todayISO, nowISO, fmtDate, fmtTime, timeAgo, ghs, ageFrom,
   LAB_CATALOG, LAB_GROUPS, SYMPTOMS, FREQS,
 } from "../data";
-import type { LabOrder, Patient, Vitals } from "../data";
+import type { LabOrder, Patient,
+TreatmentEntry, Vitals } from "../data";
 import { ReportModal } from "./Lab";
 import { Badge, Btn, Card, Field, Input, Modal, SearchBox, Select, StatusPill, Tabs, Textarea, Avatar, SectionHead, Empty } from "../ui";
 import {
@@ -450,6 +451,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
             </div>
           </Card>
           <PatientDocumentsAndComments patient={p} />
+          <TreatmentSheet patient={p} />
         </div>
       )}
 
@@ -681,6 +683,79 @@ function PatientDocumentsAndComments({ patient }: { patient: Patient }) {
             {comments.length === 0 && <p className="mt-2 rounded-lg bg-paper/70 p-3 text-xs text-ink-faint">No department comments yet.</p>}
           </div>
         </div>
+      </div>
+    </Card>
+  );
+}
+
+function TreatmentSheet({ patient }: { patient: Patient }) {
+  const { db, user, mutate, toast } = useStore();
+  const isNurse = user?.role === "nurse";
+  const [form, setForm] = useState({ medicine: "", dose: "", route: "Oral", frequency: "", times: "06:00, 14:00, 22:00", date: todayISO(), instructions: "" });
+  const entries = db.treatmentEntries.filter((entry) => entry.patientMrn === patient.mrn).sort((a, b) => `${b.date}${b.createdAt}`.localeCompare(`${a.date}${a.createdAt}`));
+  const set = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
+
+  const addEntry = () => {
+    if (!form.medicine.trim() || !form.dose.trim() || !form.frequency.trim()) {
+      toast("Medicine, dose and frequency are required", "danger");
+      return;
+    }
+    const times = form.times.split(",").map((time) => time.trim()).filter(Boolean);
+    if (!times.length) {
+      toast("Add at least one administration time", "danger");
+      return;
+    }
+    mutate((d) => d.treatmentEntries.unshift({
+      id: crypto.randomUUID(), patientMrn: patient.mrn, medicine: form.medicine.trim(), dose: form.dose.trim(),
+      route: form.route, frequency: form.frequency.trim(), times, date: form.date, instructions: form.instructions.trim(),
+      administrations: {}, createdAt: nowISO(), createdBy: user?.name ?? "Nurse",
+    }), { audit: `Added treatment sheet entry for ${patient.name}: ${form.medicine.trim()}` });
+    setForm((current) => ({ ...current, medicine: "", dose: "", frequency: "", instructions: "" }));
+    toast("Treatment sheet updated", "ok");
+  };
+
+  const markGiven = (entry: TreatmentEntry, time: string) => {
+    if (!isNurse) return;
+    mutate((d) => {
+      const current = d.treatmentEntries.find((item) => item.id === entry.id);
+      if (current) current.administrations[time] = `${nowISO()} · ${user?.name ?? "Nurse"}`;
+    }, { audit: `Recorded ${entry.medicine} given at ${time} to ${patient.name}` });
+    toast(`${entry.medicine} marked given at ${time}`, "ok");
+  };
+
+  return (
+    <Card className="p-4 md:col-span-2">
+      <SectionHead title="Nurses Treatment Sheet" sub="Daily medication chart — record each prescribed medicine, scheduled time and administration signature." />
+      {isNurse && (
+        <div className="grid gap-2 rounded-xl border border-med-200 bg-med-50/40 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Drug / medicine"><Input value={form.medicine} onChange={(e) => set("medicine", e.target.value)} placeholder="e.g. Sup. Magnesium" /></Field>
+          <Field label="Dose"><Input value={form.dose} onChange={(e) => set("dose", e.target.value)} placeholder="e.g. 1 tablet" /></Field>
+          <Field label="Route"><Select value={form.route} onChange={(e) => set("route", e.target.value)}><option>Oral</option><option>IV</option><option>IM</option><option>SC</option><option>Topical</option></Select></Field>
+          <Field label="Frequency"><Input value={form.frequency} onChange={(e) => set("frequency", e.target.value)} placeholder="e.g. Three times daily" /></Field>
+          <Field label="Scheduled times" className="sm:col-span-2"><Input value={form.times} onChange={(e) => set("times", e.target.value)} placeholder="06:00, 14:00, 22:00" /></Field>
+          <Field label="Date"><Input type="date" value={form.date} onChange={(e) => set("date", e.target.value)} /></Field>
+          <Field label="Instructions"><Input value={form.instructions} onChange={(e) => set("instructions", e.target.value)} placeholder="After meals…" /></Field>
+          <div className="sm:col-span-2 lg:col-span-4"><Btn onClick={addEntry}><IPlus size={13} /> Add to treatment sheet</Btn></div>
+        </div>
+      )}
+      <div className="mt-3 space-y-3">
+        {entries.map((entry) => (
+          <div key={entry.id} className="overflow-x-auto rounded-xl border border-line">
+            <div className="flex min-w-[620px] items-center justify-between gap-3 bg-paper/70 px-3 py-2">
+              <div><p className="text-xs font-bold text-ink">{entry.medicine} <span className="font-normal text-ink-soft">· {entry.dose} · {entry.route}</span></p><p className="text-[10px] text-ink-faint">{entry.frequency} · {entry.date}{entry.instructions ? ` · ${entry.instructions}` : ""}</p></div>
+              <span className="text-[10px] text-ink-faint">Entered by {entry.createdBy}</span>
+            </div>
+            <div className="grid min-w-[620px] grid-cols-[120px_repeat(4,1fr)] border-t border-line text-[10px]">
+              <span className="p-2 font-bold uppercase tracking-wide text-ink-faint">Time / given</span>
+              {entry.times.map((time) => (
+                <button key={time} disabled={!isNurse || !!entry.administrations[time]} onClick={() => markGiven(entry, time)} className={`border-l border-line p-2 text-center font-mono ${entry.administrations[time] ? "bg-emerald-50 text-emerald-700" : "text-med-700 hover:bg-med-50"}`}>
+                  <span className="block font-bold">{time}</span><span className="mt-1 block">{entry.administrations[time] ? "Given" : isNurse ? "Mark given" : "Pending"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {entries.length === 0 && <p className="rounded-lg bg-paper/70 p-3 text-xs text-ink-faint">{isNurse ? "No treatment entries yet. Add the doctor-prescribed medicines above." : "No nurse treatment sheet entries recorded."}</p>}
       </div>
     </Card>
   );
