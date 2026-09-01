@@ -297,6 +297,28 @@ export interface Consultation {
   labIds: string[];
 }
 
+export interface PatientDocument {
+  id: string;
+  patientMrn: string;
+  name: string;
+  type: "pdf";
+  size: number;
+  dataUrl: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  department: string;
+}
+
+export interface PatientComment {
+  id: string;
+  patientMrn: string;
+  text: string;
+  createdAt: string;
+  createdBy: string;
+  role: Role;
+  department: string;
+}
+
 export interface Notif {
   id: string;
   at: string;
@@ -326,6 +348,8 @@ export interface DB {
   staff: Staff[];
   appointments: Appointment[];
   consultations: Consultation[];
+  patientDocuments: PatientDocument[];
+  patientComments: PatientComment[];
   labOrders: LabOrder[];
   rxOrders: RxOrder[];
   medicines: Medicine[];
@@ -794,6 +818,8 @@ export function emptyDB(): DB {
     staff: [],
     appointments: [],
     consultations: [],
+    patientDocuments: [],
+    patientComments: [],
     labOrders: [],
     rxOrders: [],
     medicines: [],

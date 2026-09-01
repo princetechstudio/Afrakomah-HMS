@@ -449,6 +449,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
               <span className="text-ink-faint">Phone</span><span className="font-mono font-semibold text-ink">{p.nextOfKin.phone}</span>
             </div>
           </Card>
+          <PatientDocumentsAndComments patient={p} />
         </div>
       )}
 
@@ -577,6 +578,111 @@ function PatientDetail({ mrn }: { mrn: string }) {
       {showBill && <ChargeModal patient={p} onClose={() => setShowBill(false)} />}
       {labReport && <ReportModal order={labReport} onClose={() => setLabReport(null)} />}
     </div>
+  );
+}
+
+function PatientDocumentsAndComments({ patient }: { patient: Patient }) {
+  const { db, user, mutate, toast } = useStore();
+  const [comment, setComment] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const documents = db.patientDocuments.filter((document) => document.patientMrn === patient.mrn).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+  const comments = db.patientComments.filter((item) => item.patientMrn === patient.mrn).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const department = user?.dept || (user?.role === "admin" ? "Administration" : user?.role ?? "Clinical");
+
+  const upload = (file: File | undefined) => {
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast("Only PDF files can be attached", "danger");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast("PDF must be 10 MB or smaller", "danger");
+      return;
+    }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        setUploading(false);
+        toast("Could not read that PDF", "danger");
+        return;
+      }
+      mutate((d) => {
+        d.patientDocuments.unshift({
+          id: crypto.randomUUID(), patientMrn: patient.mrn, name: file.name, type: "pdf", size: file.size,
+          dataUrl: reader.result as string, uploadedAt: nowISO(), uploadedBy: user?.name ?? "Staff", department,
+        });
+      }, { audit: `Attached external PDF ${file.name} to ${patient.name} (${patient.mrn})` });
+      setUploading(false);
+      toast("PDF attached to the patient record", "ok");
+    };
+    reader.onerror = () => {
+      setUploading(false);
+      toast("Could not read that PDF", "danger");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addComment = () => {
+    const text = comment.trim();
+    if (!text) {
+      toast("Enter a comment before saving", "danger");
+      return;
+    }
+    mutate((d) => {
+      d.patientComments.unshift({
+        id: crypto.randomUUID(), patientMrn: patient.mrn, text, createdAt: nowISO(),
+        createdBy: user?.name ?? "Staff", role: user?.role ?? "reception", department,
+      });
+    }, { audit: `Added ${department} comment to ${patient.name} (${patient.mrn})` });
+    setComment("");
+    toast("Department comment saved", "ok");
+  };
+
+  return (
+    <Card className="p-4 md:col-span-2">
+      <SectionHead title="External Documents & Department Comments" sub="Attach outside-facility PDFs and leave a clear handover note for the care team." />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">Patient file attachments</p>
+            <label className={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10.5px] font-bold transition-colors ${uploading ? "pointer-events-none border-line bg-line-soft text-ink-faint" : "border-med-200 bg-med-50 text-med-700 hover:border-med-400 hover:bg-med-100"}`}>
+              <IFile size={12} /> {uploading ? "Reading PDF…" : "Attach PDF"}
+              <input type="file" accept="application/pdf,.pdf" className="hidden" disabled={uploading} onChange={(event) => { upload(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+            </label>
+          </div>
+          <p className="mt-1 text-[10.5px] text-ink-faint">Use for printed lab results, scans and reports from another facility. Maximum 10 MB per PDF.</p>
+          <div className="mt-2 space-y-2">
+            {documents.map((document) => (
+              <div key={document.id} className="flex items-center justify-between gap-3 rounded-lg border border-line-soft bg-paper/60 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-semibold text-ink">{document.name}</p>
+                  <p className="text-[10px] text-ink-faint">{document.department} · {fmtDate(document.uploadedAt)} · {(document.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+                <a href={document.dataUrl} target="_blank" rel="noreferrer" className="shrink-0 rounded-md border border-line px-2 py-1 text-[10px] font-bold text-med-700 hover:bg-med-50">Open PDF</a>
+              </div>
+            ))}
+            {documents.length === 0 && <p className="mt-2 rounded-lg bg-paper/70 p-3 text-xs text-ink-faint">No external PDFs attached yet.</p>}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-ink-faint">Department comments</p>
+          <div className="mt-2 flex gap-2">
+            <Textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a handover, scan note, nursing observation or clinical comment…" className="min-h-[62px]" />
+            <Btn size="sm" onClick={addComment}>Save</Btn>
+          </div>
+          <div className="mt-2 space-y-2">
+            {comments.map((item) => (
+              <div key={item.id} className="rounded-lg border border-line-soft bg-paper/60 px-3 py-2">
+                <p className="text-xs leading-relaxed text-ink">{item.text}</p>
+                <p className="mt-1 text-[10px] text-ink-faint">{item.department} · {item.createdBy} · {fmtDate(item.createdAt)} {fmtTime(item.createdAt)}</p>
+              </div>
+            ))}
+            {comments.length === 0 && <p className="mt-2 rounded-lg bg-paper/70 p-3 text-xs text-ink-faint">No department comments yet.</p>}
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
