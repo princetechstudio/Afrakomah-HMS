@@ -33,6 +33,8 @@ export default function Appointments() {
   const dayAppts = db.appointments.filter((a) => a.date === date);
   const allAppts = useMemo(() => [...db.appointments].sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`)), [db.appointments]);
   const canBook = user?.role === "reception" || user?.role === "doctor";
+  const canCheckIn = user?.role === "reception";
+  const canConsult = user?.role === "doctor";
 
   const shift = (n: number) => {
     const d = new Date(date + "T12:00:00");
@@ -184,10 +186,10 @@ export default function Appointments() {
         <Modal title={`Appointment ${sel.id}`} sub={`${fmtDate(sel.date)} at ${sel.time} · ${sel.type} consultation`} onClose={() => setSel(null)} w="max-w-md"
           footer={
             <>
-              {canBook && sel.status === "scheduled" && <Btn onClick={() => setStatus(sel, "checked-in")}><ICheck size={14} /> Check in & issue token</Btn>}
-              {canBook && sel.status === "checked-in" && <Btn onClick={() => setStatus(sel, "in-consultation")}><ICheck size={14} /> Start consultation</Btn>}
-              {canBook && sel.status === "in-consultation" && <Btn onClick={() => setStatus(sel, "completed")}><ICheck size={14} /> Mark completed</Btn>}
-              {canBook && (sel.status === "scheduled" || sel.status === "checked-in") && <Btn variant="danger" onClick={() => setStatus(sel, "cancelled")}><IX size={14} /> Cancel</Btn>}
+              {canCheckIn && sel.status === "scheduled" && <Btn onClick={() => setStatus(sel, "checked-in")}><ICheck size={14} /> Check in & issue token</Btn>}
+              {canConsult && sel.status === "checked-in" && <Btn onClick={() => setStatus(sel, "in-consultation")}><ICheck size={14} /> Start consultation</Btn>}
+              {canConsult && sel.status === "in-consultation" && <Btn onClick={() => setStatus(sel, "completed")}><ICheck size={14} /> Mark completed</Btn>}
+              {canCheckIn && (sel.status === "scheduled" || sel.status === "checked-in") && <Btn variant="danger" onClick={() => setStatus(sel, "cancelled")}><IX size={14} /> Cancel</Btn>}
             </>
           }>
           {(() => {

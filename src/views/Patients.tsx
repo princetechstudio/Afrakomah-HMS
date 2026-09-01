@@ -244,7 +244,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
   }
 
   const role = user?.role ?? "reception";
-  const canConsult = role === "nurse";
+  const canConsult = role === "doctor";
   const canOrder = role === "doctor";
   const canVitals = role === "nurse";
   const canBill = role === "billing";
@@ -571,7 +571,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
         </Card>
       )}
 
-      {showConsult && <ConsultModal patient={p} ordersOnly={role === "doctor"} onClose={() => setShowConsult(false)} />}
+      {showConsult && <ConsultModal patient={p} onClose={() => setShowConsult(false)} />}
       {doctorOrder && <ConsultModal patient={p} ordersOnly orderType={doctorOrder} onClose={() => setDoctorOrder(null)} />}
       {showVitals && <VitalsModal patient={p} onClose={() => setShowVitals(false)} />}
       {showBill && <ChargeModal patient={p} onClose={() => setShowBill(false)} />}
