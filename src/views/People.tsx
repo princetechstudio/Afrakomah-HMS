@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../store";
-import ProvisionAccountModal from "./AccountModal";
+import ProvisionAccountModal, { ChangePasswordModal } from "./AccountModal";
 import { todayISO } from "../data";
 import type { Role } from "../data";
 import { Badge, Btn, Card, SectionHead, Avatar, StatusPill } from "../ui";
@@ -78,6 +78,7 @@ export function StaffView() {
   const { db, user, mutate, toast, go } = useStore();
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [passwordFor, setPasswordFor] = useState<{ id: string; name: string } | null>(null);
   const canManageAccounts = user?.role === "admin";
 
   const staff = db.staff.filter((s) => roleFilter === "all" || s.role === roleFilter);
@@ -150,6 +151,7 @@ export function StaffView() {
                     <Btn variant={s.active ? "outline" : "soft"} size="xs" onClick={() => toggleActive(s.id)}>
                       {s.active ? "Deactivate" : "Activate"}
                     </Btn>
+                    <Btn variant="soft" size="xs" onClick={() => setPasswordFor({ id: s.id, name: s.name })}>Password</Btn>
                   </td>
                 )}
               </tr>
@@ -179,6 +181,7 @@ export function StaffView() {
         </div>
       </Card>
       {createOpen && <ProvisionAccountModal onClose={() => setCreateOpen(false)} />}
+      {passwordFor && <ChangePasswordModal staffId={passwordFor.id} staffName={passwordFor.name} onClose={() => setPasswordFor(null)} />}
     </div>
   );
 }

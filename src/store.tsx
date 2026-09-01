@@ -47,6 +47,7 @@ interface StoreShape {
   mutate: (fn: (d: DB) => void, opts?: MutateOpts) => void;
   clearNotifications: () => void;
   createAccount: (a: NewAccount) => void;
+  changeStaffPassword: (staffId: string, password: string) => void;
   toast: (text: string, tone?: ToastMsg["tone"]) => void;
   toasts: ToastMsg[];
   dismissToast: (id: number) => void;
@@ -254,14 +255,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [mutate, toast]
   );
 
+  const changeStaffPassword = useCallback(
+    (staffId: string, password: string) => {
+      if (userRef.current?.role !== "admin") {
+        toast("Only hospital administrators can change staff passwords", "danger");
+        return;
+      }
+      if (password.length < 4) {
+        toast("Password must be at least 4 characters", "danger");
+        return;
+      }
+      void (async () => {
+        const { error } = await supabase.rpc("change_staff_password", { p_staff_id: staffId, p_password: password });
+        if (error) {
+          toast(`Could not change password: ${error.message}`, "danger");
+          return;
+        }
+        mutate(() => {}, { audit: `Changed password for staff account ${staffId}` });
+        toast(`Password changed for ${staffId}`, "ok");
+      })();
+    },
+    [mutate, toast]
+  );
+
   const go = useCallback((view: ViewId, params?: Partial<Omit<Nav, "view">>) => {
     setNav({ view, ...params });
     window.scrollTo({ top: 0 });
   }, []);
 
   const value = useMemo(
-    () => ({ db, user, login, logout, mutate, clearNotifications, createAccount, toast, toasts, dismissToast, nav, go }),
-    [db, user, login, logout, mutate, clearNotifications, createAccount, toast, toasts, dismissToast, nav, go]
+    () => ({ db, user, login, logout, mutate, clearNotifications, createAccount, changeStaffPassword, toast, toasts, dismissToast, nav, go }),
+    [db, user, login, logout, mutate, clearNotifications, createAccount, changeStaffPassword, toast, toasts, dismissToast, nav, go]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
