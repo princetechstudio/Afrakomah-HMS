@@ -337,7 +337,7 @@ function PatientDetail({ mrn }: { mrn: string }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {canConsult && <Btn onClick={() => setShowConsult(true)}><IClipboard size={14} /> New consultation</Btn>}
-            {canOrder && !canConsult && <>
+            {canOrder && <>
               <Btn onClick={() => setDoctorOrder("rx")}><IPill size={14} /> Prescribe medicine</Btn>
               <Btn variant="soft" onClick={() => setDoctorOrder("lab")}><IFlask size={14} /> Order laboratory test</Btn>
             </>}
