@@ -1,10 +1,11 @@
 import { emptyDB, nowISO } from "./data";
 import type { DB, Payment, Role } from "./data";
-import { supabase } from "./supabase";
+import { hasSupabaseConfig, supabase } from "./supabase";
 
 type Row = Record<string, any>;
 
 const rows = async (table: string) => {
+  if (!hasSupabaseConfig || !supabase) return [] as Row[];
   const { data, error } = await supabase.from(table).select("*");
   if (error) throw error;
   return (data ?? []) as Row[];
@@ -13,6 +14,7 @@ const asNumber = (value: unknown) => Number(value ?? 0);
 const by = (items: Row[], key: string) => new Map(items.map((item) => [String(item[key]), item]));
 
 export async function loadRelational(): Promise<DB> {
+  if (!hasSupabaseConfig || !supabase) return emptyDB();
   const [staff, patients, wards, beds, appointments, vitals, consultations, patientDocuments, patientComments, treatmentEntries, labTests, labOrders, labResults, medicines, prescriptions, prescriptionItems, admissions, maternity, nursing, invoices, invoiceItems, payments, notifications, audit] = await Promise.all([
     rows("staff"), rows("patients"), rows("wards"), rows("beds"), rows("appointments"), rows("vitals"), rows("consultations"), rows("patient_documents"), rows("patient_comments"), rows("treatment_entries"), rows("lab_tests"), rows("lab_orders"), rows("lab_results"), rows("medicines"), rows("prescriptions"), rows("prescription_items"), rows("admissions"), rows("maternity_records"), rows("nursing_notes"), rows("invoices"), rows("invoice_items"), rows("payments"), rows("notifications"), rows("audit_logs"),
   ]);
@@ -43,18 +45,21 @@ export async function loadRelational(): Promise<DB> {
 }
 
 const upsert = async (table: string, values: Row[], conflict: string) => {
+  if (!hasSupabaseConfig || !supabase) return;
   if (!values.length) return;
   const uniqueValues = [...new Map(values.map((value) => [String(value[conflict]), value])).values()];
   const { error } = await supabase.from(table).upsert(uniqueValues, { onConflict: conflict });
   if (error) throw error;
 };
 export async function saveRelational(db: DB): Promise<void> {
+  if (!hasSupabaseConfig || !supabase) return;
+  const client = supabase;
   await upsert("patients", db.patients.map((p) => ({ mrn: p.mrn, national_id: p.nationalId, full_name: p.name, date_of_birth: p.dob, gender: p.gender, phone: p.phone, address: p.address, blood_group: p.bloodGroup, allergies: p.allergies, insurance: p.insurance, next_of_kin: p.nextOfKin, history: p.history, medications: p.medications, status: p.status, financially_cleared_at: p.financiallyClearedAt ?? null })), "mrn");
   await upsert("wards", db.wards.map((w) => ({ ward_code: w.id, name: w.name, nightly_charge: w.daily })), "ward_code");
   await upsert("medicines", db.medicines.map((m) => ({ medicine_code: m.id, name: m.name, category: m.category, batch_number: m.batch, supplier: m.supplier, stock: m.stock, unit: m.unit, buy_price: m.buyPrice, sell_price: m.sellPrice, expiry_date: m.expiry || null, reorder_level: m.reorderLevel, storage_location: m.location })), "medicine_code");
   const patientRows = await rows("patients"); const staffRows = await rows("staff"); const wardRows = await rows("wards"); const medicineRows = await rows("medicines");
   const patientIds = by(patientRows, "mrn"); const staffIds = by(staffRows, "staff_id"); const staffNames = by(staffRows, "full_name"); const wardIds = by(wardRows, "ward_code"); const medicineIds = by(medicineRows, "medicine_code");
-  await Promise.all(db.staff.map(async (s) => { const current = staffIds.get(s.id); if (current) { const { error } = await supabase.from("staff").update({ full_name: s.name, role: s.role, department: s.dept, job_title: s.title, phone: s.phone, active: s.active }).eq("staff_id", s.id); if (error) throw error; } }));
+  await Promise.all(db.staff.map(async (s) => { const current = staffIds.get(s.id); if (current) { const { error } = await client.from("staff").update({ full_name: s.name, role: s.role, department: s.dept, job_title: s.title, phone: s.phone, active: s.active }).eq("staff_id", s.id); if (error) throw error; } }));
   await upsert("beds", db.beds.map((b) => ({ bed_code: b.id, ward_id: wardIds.get(b.ward)?.id, status: b.status, patient_id: b.patientMrn ? patientIds.get(b.patientMrn)?.id : null })).filter((b) => b.ward_id), "bed_code");
   await upsert("appointments", db.appointments.map((a) => ({ external_id: a.id, patient_id: patientIds.get(a.patientMrn)?.id, doctor_id: staffIds.get(a.doctorId)?.id, appointment_date: a.date, appointment_time: a.time, appointment_type: a.type, reason: a.reason, status: a.status })).filter((a) => a.patient_id && a.doctor_id), "external_id");
   await upsert("vitals", db.vitalsLog.map(({ patientMrn, v }) => ({ external_id: `${patientMrn}:${v.takenAt}:${v.by}`, patient_id: patientIds.get(patientMrn)?.id, recorded_by: (staffIds.get(v.by) ?? staffNames.get(v.by))?.id, temperature: v.temp, bp_systolic: v.bpSys, bp_diastolic: v.bpDia, pulse: v.pulse, respiration: v.resp, spo2: v.spo2, weight: v.weight ?? null, height: v.height ?? null, recorded_at: v.takenAt })).filter((v) => v.patient_id && v.recorded_by), "external_id");

@@ -233,7 +233,7 @@ export function SettingsView() {
             <p className="mt-1 text-xs text-ink-faint">Every record and account in Supabase will be erased and the hospital starts empty. Download a backup first if you need one.</p>
             <div className="mt-4 flex justify-end gap-2">
               <Btn variant="ghost" onClick={() => setConfirmReset(false)}>Keep my data</Btn>
-              <Btn variant="danger" onClick={async () => { for (const table of ["invoice_items", "prescription_items", "lab_results", "payments", "nursing_notes", "audit_logs", "notifications", "maternity_records", "admissions", "invoices", "lab_orders", "prescriptions", "vitals", "appointments", "beds", "medicines", "patients", "wards", "staff"]) await supabase.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000"); localStorage.removeItem("afrakomah-user"); location.reload(); }}>
+              <Btn variant="danger" onClick={async () => { if (!supabase) { localStorage.removeItem("afrakomah-user"); location.reload(); return; } for (const table of ["invoice_items", "prescription_items", "lab_results", "payments", "nursing_notes", "audit_logs", "notifications", "maternity_records", "admissions", "invoices", "lab_orders", "prescriptions", "vitals", "appointments", "beds", "medicines", "patients", "wards", "staff"]) await supabase.from(table).delete().neq("id", "00000000-0000-0000-0000-000000000000"); localStorage.removeItem("afrakomah-user"); location.reload(); }}>
                 <IRefresh size={13} /> Yes, clear records
               </Btn>
             </div>

@@ -57,6 +57,7 @@ export default function LabView() {
           <h1 className="font-display text-lg font-extrabold text-ink">Laboratory</h1>
           <p className="text-xs text-ink-faint">Doctor orders → sample → processing → results → verification → doctor notified</p>
         </div>
+        {canWork && <Btn onClick={() => setShowNew(true)}><IPlus size={14} /> New walk-in test</Btn>}
       </div>
 
       {/* pipeline strip */}
@@ -225,6 +226,62 @@ function ResultsModal({ order, onClose }: { order: LabOrder; onClose: () => void
   );
 }
 
+/* ---------- new order ---------- */
+
+function NewOrderModal({ onClose }: { onClose: () => void }) {
+  const { db, mutate, toast } = useStore();
+  const [patientMrn, setPatientMrn] = useState(db.patients[0]?.mrn ?? "");
+  const [test, setTest] = useState("CBC");
+  const [priority, setPriority] = useState<"routine" | "urgent" | "stat">("routine");
+  const doctors = db.staff.filter((s) => s.role === "doctor");
+  const [doctorId, setDoctorId] = useState(doctors[0]?.id ?? "");
+
+  const save = () => {
+    const p = db.patients.find((x) => x.mrn === patientMrn);
+    mutate(
+      (d) => {
+        const id = nid("LAB", d.labOrders.map((l) => l.id));
+        d.labOrders.unshift({ id, patientMrn, doctorId, test, priority, orderedAt: nowISO(), status: "ordered", price: LAB_CATALOG[test].price });
+        charge(d, patientMrn, { desc: `Lab: ${LAB_CATALOG[test].name}`, amount: LAB_CATALOG[test].price, kind: "lab" });
+      },
+      { audit: `Created walk-in lab order ${LAB_CATALOG[test].name} for ${p?.name}`, notify: { text: `New walk-in lab order: ${LAB_CATALOG[test].name} for ${p?.name}`, icon: "lab", roles: ["lab", "admin", "doctor"] } }
+    );
+    toast(`Walk-in lab order created — ${ghs(LAB_CATALOG[test].price)} added to ${p?.name}'s bill`, "ok");
+    onClose();
+  };
+
+  return (
+    <Modal title="New Walk-in Laboratory Test" sub="Laboratory can register a test without a doctor order when needed" onClose={onClose} w="max-w-md"
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn onClick={save}><IPlus size={14} /> Create test</Btn></>}>
+      <div className="space-y-3">
+        <Field label="Patient">
+          <Select value={patientMrn} onChange={(e) => setPatientMrn(e.target.value)}>
+            {db.patients.map((p) => <option key={p.mrn} value={p.mrn}>{p.name} — {p.mrn}</option>)}
+          </Select>
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Test">
+            <Select value={test} onChange={(e) => setTest(e.target.value)}>
+              {LAB_GROUPS.map(([group, keys]) => <optgroup key={group} label={group}>{keys.map((k) => <option key={k} value={k}>{LAB_CATALOG[k].name} · {ghs(LAB_CATALOG[k].price)}</option>)}</optgroup>)}
+            </Select>
+          </Field>
+          <Field label="Priority">
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
+              <option value="routine">Routine</option><option value="urgent">Urgent</option><option value="stat">STAT</option>
+            </Select>
+          </Field>
+        </div>
+        <Field label="Requesting doctor">
+          <Select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+            {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </Select>
+        </Field>
+        <p className="flex items-center gap-1.5 text-[11px] text-ink-faint"><IChevR size={11} /> Walk-in test — the case goes straight into the lab pipeline and notifies the assigned doctor on verification.</p>
+      </div>
+    </Modal>
+  );
+}
+
 /* ---------- printable report ---------- */
 
 export function ReportModal({ order, onClose }: { order: LabOrder; onClose: () => void }) {
@@ -303,58 +360,3 @@ export function ReportModal({ order, onClose }: { order: LabOrder; onClose: () =
   );
 }
 
-/* ---------- new order ---------- */
-
-function NewOrderModal({ onClose }: { onClose: () => void }) {
-  const { db, mutate, toast } = useStore();
-  const [patientMrn, setPatientMrn] = useState(db.patients[0]?.mrn ?? "");
-  const [test, setTest] = useState("CBC");
-  const [priority, setPriority] = useState<"routine" | "urgent" | "stat">("routine");
-  const doctors = db.staff.filter((s) => s.role === "doctor");
-  const [doctorId, setDoctorId] = useState(doctors[0]?.id ?? "");
-
-  const save = () => {
-    const p = db.patients.find((x) => x.mrn === patientMrn);
-    mutate(
-      (d) => {
-        const id = nid("LAB", d.labOrders.map((l) => l.id));
-        d.labOrders.unshift({ id, patientMrn, doctorId, test, priority, orderedAt: nowISO(), status: "ordered", price: LAB_CATALOG[test].price });
-        charge(d, patientMrn, { desc: `Lab: ${LAB_CATALOG[test].name}`, amount: LAB_CATALOG[test].price, kind: "lab" });
-      },
-      { audit: `Created lab order ${LAB_CATALOG[test].name} for ${p?.name}`, notify: { text: `New lab order: ${LAB_CATALOG[test].name} for ${p?.name}`, icon: "lab", roles: ["lab", "admin", "doctor"] } }
-    );
-    toast(`Order created — ${ghs(LAB_CATALOG[test].price)} added to ${p?.name}'s bill`, "ok");
-    onClose();
-  };
-
-  return (
-    <Modal title="New Laboratory Order" sub="Charge is added to the patient's invoice automatically" onClose={onClose} w="max-w-md"
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn onClick={save}><IPlus size={14} /> Create order</Btn></>}>
-      <div className="space-y-3">
-        <Field label="Patient">
-          <Select value={patientMrn} onChange={(e) => setPatientMrn(e.target.value)}>
-            {db.patients.map((p) => <option key={p.mrn} value={p.mrn}>{p.name} — {p.mrn}</option>)}
-          </Select>
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Test">
-            <Select value={test} onChange={(e) => setTest(e.target.value)}>
-              {LAB_GROUPS.map(([group, keys]) => <optgroup key={group} label={group}>{keys.map((k) => <option key={k} value={k}>{LAB_CATALOG[k].name} · {ghs(LAB_CATALOG[k].price)}</option>)}</optgroup>)}
-            </Select>
-          </Field>
-          <Field label="Priority">
-            <Select value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
-              <option value="routine">Routine</option><option value="urgent">Urgent</option><option value="stat">STAT</option>
-            </Select>
-          </Field>
-        </div>
-        <Field label="Requesting doctor">
-          <Select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-            {doctors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </Select>
-        </Field>
-        <p className="flex items-center gap-1.5 text-[11px] text-ink-faint"><IChevR size={11} /> Walk-in order — results will notify the requesting doctor on verification.</p>
-      </div>
-    </Modal>
-  );
-}

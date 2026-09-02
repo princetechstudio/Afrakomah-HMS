@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { emptyDB, nowISO, todayISO, ROLE_META, WARD_META } from "./data";
 import type { DB, InvoiceItem, Notif, Role, Staff, ViewId } from "./data";
 import { loadRelational, saveRelational } from "./relationalStore";
-import { supabase } from "./supabase";
+import { hasSupabaseConfig, supabase } from "./supabase";
 
 /* ============================================================
   Afrakomah HMS — local store
@@ -106,13 +106,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [nav, setNav] = useState<Nav>({ view: "dashboard" });
 
-  useEffect(() => {
-    localStorage.removeItem("medicore-db-v5");
-    localStorage.removeItem("medicore-db-v4");
-    void loadRemote().then((remote) => { dbRef.current = remote; setDb(remote); }).catch((error) => toast(`Supabase connection failed: ${errorMessage(error)}`, "danger"));
+  const toast = useCallback((text: string, tone: ToastMsg["tone"] = "ok") => {
+    const id = toastSeq++;
+    setToasts((t) => [...t.slice(-3), { id, text, tone }]);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
   }, []);
 
   const dbRef = useRef(db);
+
+  useEffect(() => {
+    localStorage.removeItem("medicore-db-v5");
+    localStorage.removeItem("medicore-db-v4");
+    if (!hasSupabaseConfig) {
+      dbRef.current = emptyDB();
+      setDb(emptyDB());
+      return;
+    }
+    void loadRemote().then((remote) => { dbRef.current = remote; setDb(remote); }).catch((error) => toast(`Supabase connection failed: ${errorMessage(error)}`, "danger"));
+  }, [toast]);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const userRef = useRef(user);
   userRef.current = user;
@@ -133,11 +144,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [db.staff]);
 
-  const toast = useCallback((text: string, tone: ToastMsg["tone"] = "ok") => {
-    const id = toastSeq++;
-    setToasts((t) => [...t.slice(-3), { id, text, tone }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
-  }, []);
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
   useEffect(() => {
@@ -174,17 +180,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
     dbRef.current = next;
     setDb(next);
+    if (!hasSupabaseConfig) return;
     saveQueueRef.current = saveQueueRef.current
       .catch(() => undefined)
       .then(() => saveRemote(next));
     void saveQueueRef.current.catch((error) => toast(`Could not save to Supabase: ${errorMessage(error)}`, "danger"));
-  }, []);
+  }, [toast]);
 
   /* ---------- staff-ID sign-in with server-side password verification ---------- */
   const login = useCallback(
     (name: string, role: Role, password: string, existingId?: string) => {
       void (async () => {
         try {
+          if (!hasSupabaseConfig || !supabase) {
+            toast("Supabase is not configured in this environment. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to enable live sign-in and persistence.", "warn");
+            return;
+          }
           const staffId = (existingId ?? name).trim().toUpperCase();
           const { data, error } = await supabase.rpc("verify_staff_login", { p_staff_id: staffId, p_password: password });
           if (error) { toast(`Sign-in failed: ${error.message}`, "danger"); return; }
@@ -224,6 +235,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toast("No notifications to clear", "info");
       return;
     }
+    if (!hasSupabaseConfig || !supabase) {
+      mutate((d) => { d.notifications = d.notifications.filter((n) => !ids.includes(n.id)); }, { audit: "Cleared notifications" });
+      toast("Notifications cleared", "ok");
+      return;
+    }
     void (async () => {
       const { error } = await supabase.from("notifications").delete().in("external_id", ids);
       if (error) {
@@ -240,6 +256,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (a: NewAccount) => {
       if (userRef.current?.role !== "admin") {
         toast("Only hospital administrators can create staff accounts", "danger");
+        return;
+      }
+      if (!hasSupabaseConfig || !supabase) {
+        toast("Supabase is not configured. Add the project URL and publishable key to create staff accounts.", "warn");
         return;
       }
       void (async () => {
@@ -263,6 +283,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       if (password.length < 4) {
         toast("Password must be at least 4 characters", "danger");
+        return;
+      }
+      if (!hasSupabaseConfig || !supabase) {
+        toast("Supabase is not configured. Add the project URL and publishable key to change staff passwords.", "warn");
         return;
       }
       void (async () => {
