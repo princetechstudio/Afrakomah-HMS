@@ -242,7 +242,7 @@ function Shell() {
       {drawer && <button aria-label="Close menu" onClick={() => setDrawer(false)} className="fixed inset-0 z-40 bg-pine-950/55 backdrop-blur-[2px] lg:hidden" />}
 
       {/* sidebar — slide-over drawer on mobile, fixed rail on desktop */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[240px] shrink-0 flex-col bg-pine-950 text-white shadow-2xl transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-auto lg:w-[218px] lg:translate-x-0 lg:shadow-none ${drawer ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 flex h-screen w-[85vw] max-w-[260px] shrink-0 flex-col bg-pine-950 text-white shadow-2xl transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:z-auto lg:w-[218px] lg:translate-x-0 lg:shadow-none ${drawer ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex items-center gap-2.5 px-4 py-4">
           <img src="/logo.png" alt="Afrakomah Community Clinic" className="h-9 w-9 rounded-xl object-contain" />
           <div>
